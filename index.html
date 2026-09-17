@@ -100,7 +100,9 @@
 <!-- ============================================ 3 · EDITOR -->
 <main class="screen editor" id="screen-editor" hidden>
   <aside class="sidebar" aria-label="Design controls">
-    <section class="group">
+    <div class="tabs" id="tabs" role="tablist" aria-label="Control groups"></div>
+
+    <section class="group" data-tab="photo">
       <button type="button" class="group-head"><span>Artwork</span><span class="chev">▾</span></button>
       <div class="group-body">
         <div id="editor-assets" class="editor-assets"></div>
@@ -108,7 +110,7 @@
       </div>
     </section>
 
-    <section class="group">
+    <section class="group" data-tab="style">
       <button type="button" class="group-head"><span>Colours from the logo</span><span class="chev">▾</span></button>
       <div class="group-body">
         <div id="editor-swatches" class="swatches"></div>
@@ -119,14 +121,14 @@
     <!-- auto-generated from SCHEMA -->
     <div id="controls"></div>
 
-    <section class="group" id="specs-group">
+    <section class="group" id="specs-group" data-tab="text">
       <button type="button" class="group-head"><span>Spec strip</span><span class="chev">▾</span></button>
       <div class="group-body">
         <div id="specs" class="specs"></div>
       </div>
     </section>
 
-    <section class="group">
+    <section class="group" data-tab="export">
       <button type="button" class="group-head"><span>Reset</span><span class="chev">▾</span></button>
       <div class="group-body">
         <p class="note">Puts this design back to its specified defaults. Your photo, logo and boat name are kept.</p>

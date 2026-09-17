@@ -230,9 +230,9 @@ function typeGroup(id, title, path, kind, opts = {}) {
   const role = opts.role || path.split('.')[1];
   const f = [
     { key: `${path}.family`, label: 'Font family', type: 'font', options: fontOpts(kind), when: opts.familyWhen },
-    { key: `${path}.size`, label: 'Size', type: 'range', min: 8, max: opts.maxSize || 400, step: 0.1, unit: 'px' },
-    { key: `${path}.tracking`, label: 'Letter spacing', type: 'range', min: -8, max: 24, step: 0.5, unit: 'px' },
-    { key: `${path}.lineHeight`, label: 'Line height', type: 'range', min: 0.7, max: 2.2, step: 0.01, unit: '×' },
+    { key: `${path}.size`, label: 'Size', type: 'range', box: true, min: 8, max: opts.maxSize || 400, step: 0.1, unit: 'px' },
+    { key: `${path}.tracking`, label: 'Letter spacing', type: 'range', box: true, min: -8, max: 24, step: 0.1, unit: 'px' },
+    { key: `${path}.lineHeight`, label: 'Line height', type: 'range', box: true, min: 0.7, max: 2.2, step: 0.01, unit: '×' },
     { key: `${path}.color`, label: 'Colour', type: 'color' },
     { key: `${path}.fit`, label: 'Shrink to fit column', type: 'checkbox' }
   ];
@@ -246,12 +246,12 @@ function typeGroup(id, title, path, kind, opts = {}) {
     f.splice(1, 0, { key: `${path}.weight`, label: 'Weight', type: 'select', options: WEIGHTS, numeric: true });
     f.push({ key: `${path}.transform`, label: 'Case', type: 'select', options: TRANSFORMS });
   }
-  return { id, title, show: opts.show, fields: f };
+  return { id, title, tab: 'text', collapsed: true, show: opts.show, fields: f };
 }
 
 export const SCHEMA = [
   {
-    id: 'canvas', title: 'Canvas & export',
+    id: 'canvas', tab: 'export', title: 'Canvas & export',
     fields: [
       { key: 'canvas.preset', label: 'Size preset', type: 'select',
         options: Object.entries(CANVAS_PRESETS).map(([value, p]) => ({ value, label: p.label })) },
@@ -264,7 +264,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'photo', title: 'Boat photo',
+    id: 'photo', tab: 'photo', title: 'Boat photo',
     note: 'Move the photo with the sliders, or drag it directly on the preview.',
     fields: [
       { key: 'photo.offsetX', label: 'Move photo ↔', type: 'range', min: -1, max: 1, step: 0.005 },
@@ -278,7 +278,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'fade', title: 'Colour fade', show: ['design-3', 'bold-left', 'full-bleed'],
+    id: 'fade', tab: 'photo', title: 'Colour fade', show: ['design-3', 'bold-left', 'full-bleed'],
     note: 'The brand-coloured field the headline sits on. Hold keeps it solid before it starts dissolving into the photo.',
     fields: [
       { key: 'photo.fadeOpacity', label: 'Fade opacity', type: 'range', min: 0, max: 1, step: 0.01 },
@@ -287,14 +287,14 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'layout', title: 'Text column',
+    id: 'layout', tab: 'text', title: 'Text column',
     note: 'How wide text may run before "shrink to fit" kicks in. Widen this to let a headline get bigger.',
     fields: [
       { key: 'layout.textWidth', label: 'Column width', type: 'range', min: 0.2, max: 1, step: 0.005 }
     ]
   },
   {
-    id: 'brand', title: 'Brand colours',
+    id: 'brand', tab: 'style', title: 'Brand colours',
     note: 'Extracted from your logo, or set by hand. Templates reference these slots.',
     fields: [
       { key: 'brand.primary', label: 'Primary', type: 'color' },
@@ -305,7 +305,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'logo', title: 'Logo placement & size',
+    id: 'logo', tab: 'logo', title: 'Logo placement & size',
     fields: [
       { key: 'logo.position', label: 'Anchor', type: 'select', options: [
         { value: 'top-left', label: 'Top left' }, { value: 'top-center', label: 'Top centre' }, { value: 'top-right', label: 'Top right' },
@@ -322,7 +322,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'wrapper', title: 'Logo background wrapper',
+    id: 'wrapper', tab: 'logo', title: 'Logo background wrapper',
     fields: [
       { key: 'logo.wrapper.shape', label: 'Shape', type: 'select', options: [
         { value: 'none', label: 'None — logo only' }, { value: 'circle', label: 'Circle' },
@@ -349,7 +349,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'content', title: 'Text content',
+    id: 'content', tab: 'text', title: 'Text content',
     fields: [
       { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
       { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-4', 'diagonal-split', 'full-bleed'] },
@@ -358,7 +358,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'site-type', title: 'Website typography',
+    id: 'site-type', tab: 'text', title: 'Website typography',
     note: 'Set the two faces your site uses. With the locks on, secondary text and taglines follow the site body font automatically.',
     fields: [
       { key: 'siteType.heading', label: 'Site heading font', type: 'font', options: fontOpts('display') },
@@ -373,7 +373,7 @@ export const SCHEMA = [
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 60, show: ['editorial'], familyWhen: st => !st.siteType.lockSecondary }),
   {
-    id: 'rule', title: 'Accent rule',
+    id: 'rule', tab: 'style', title: 'Accent rule',
     fields: [
       { key: 'rule.show', label: 'Show accent rule', type: 'checkbox' },
       { key: 'rule.color', label: 'Colour', type: 'color' },
@@ -382,7 +382,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'ruleB', title: 'Second accent rule', show: ['design-3'],
+    id: 'ruleB', tab: 'style', title: 'Second accent rule', show: ['design-3'],
     note: 'The shorter rule sits above the boat name, this one below it.',
     fields: [
       { key: 'ruleB.show', label: 'Show second rule', type: 'checkbox' },
@@ -392,7 +392,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'divider', title: 'Geometric divider', show: ['design-4'],
+    id: 'divider', tab: 'style', title: 'Geometric divider', show: ['design-4'],
     note: 'Where the photo starts, as a fraction of the width — top edge and bottom edge separately, so the angle is yours to set.',
     fields: [
       { key: 'divider.style', label: 'Shape', type: 'select', options: [

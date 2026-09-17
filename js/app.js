@@ -12,7 +12,7 @@
 
 import { DEFAULTS, CANVAS_PRESETS, clone, merge } from './settings.js';
 import { DESIGNS, DESIGN_SLOTS, byId, pendingSlots } from './designs.js';
-import { Panel, buildSpecEditor } from './ui.js';
+import { Panel, buildSpecEditor, buildTabs } from './ui.js';
 import { renderDesign, RENDERERS, textHitBoxes } from './templates.js';
 import { logoGeometry } from './logo.js';
 import { extractPalette, readableOn } from './palette.js';
@@ -309,6 +309,7 @@ function pendingCard(slot) {
 
 let panel = null;
 let renderSpecs = null;
+let setTab = null;
 
 function S() { return state.settings[state.active]; }
 
@@ -319,6 +320,7 @@ function openEditor(id) {
   if (!panel) {
     panel = new Panel($('#controls'), S(), onControlChange);
     renderSpecs = buildSpecEditor($('#specs'), S(), scheduleRender);
+    setTab = buildTabs($('#tabs'));
   } else {
     panel.S = S();
     panel.refresh();
@@ -328,6 +330,7 @@ function openEditor(id) {
   paintSwatches($('#editor-swatches'));
   paintEditorAssets();
   syncSpecsVisibility();
+  setTab?.('photo');
   preloadFonts(familiesInUse()).then(scheduleRender);
   show('editor');
   toast(`Editing ${design.slot ? 'Design ' + design.slot : design.name}.`);

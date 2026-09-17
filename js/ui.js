@@ -9,6 +9,18 @@
 import { SCHEMA, get, set } from './settings.js';
 import { ensureFont, stack } from './fonts.js';
 
+const round = v => Math.round(v * 1000) / 1000;
+
+/** Compact read-only readout for a slider-only control. */
+function format(v, field) {
+  const n = round(v);
+  if (field.unit === 'px') return n + 'px';
+  if (field.unit === '×') return n + '×';
+  // Fractions of the canvas read better as percentages than as 0.405.
+  if (field.max <= 1.2 && field.min >= -1.2) return Math.round(v * 100) + '%';
+  return String(n);
+}
+
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -35,6 +47,8 @@ export class Panel {
     this.root.innerHTML = '';
     for (const group of SCHEMA) {
       const sec = el('section', 'group');
+      if (group.tab) sec.dataset.tab = group.tab;
+      if (group.collapsed) sec.classList.add('collapsed');
       const head = el('button', 'group-head');
       head.type = 'button';
       head.innerHTML = `<span>${group.title}</span><span class="chev" aria-hidden="true">▾</span>`;
@@ -63,14 +77,33 @@ export class Panel {
       case 'range': {
         const r = el('input'); r.type = 'range'; r.id = 'f-' + field.key;
         r.min = field.min; r.max = field.max; r.step = field.step;
-        const n = el('input', 'num'); n.type = 'number';
-        n.min = field.min; n.max = field.max; n.step = field.step;
-        const sync = v => { r.value = v; n.value = Math.round(v * 1000) / 1000; };
-        r.addEventListener('input', () => { n.value = r.value; this.commit(field.key, +r.value); });
-        n.addEventListener('input', () => { r.value = n.value; this.commit(field.key, +n.value); });
-        wrap.append(r, n);
-        if (field.unit) wrap.appendChild(el('span', 'unit', field.unit));
-        read = () => +r.value; write = sync;
+        wrap.appendChild(r);
+
+        // Spatial values are set by dragging the slider alone. Only fields
+        // marked `box` — the type properties, where an exact 33.3 has to be
+        // typeable — also get an editable number input.
+        if (field.box) {
+          const n = el('input', 'num'); n.type = 'number';
+          n.min = field.min; n.max = field.max; n.step = field.step;
+          r.addEventListener('input', () => { n.value = r.value; this.commit(field.key, +r.value); });
+          n.addEventListener('input', () => {
+            const v = +n.value;
+            if (Number.isFinite(v)) { r.value = v; this.commit(field.key, v); }
+          });
+          wrap.appendChild(n);
+          if (field.unit) wrap.appendChild(el('span', 'unit', field.unit));
+          read = () => +r.value;
+          write = v => { r.value = v; if (document.activeElement !== n) n.value = round(v); };
+        } else {
+          const out = el('span', 'readout-val');
+          r.addEventListener('input', () => {
+            out.textContent = format(+r.value, field);
+            this.commit(field.key, +r.value);
+          });
+          wrap.appendChild(out);
+          read = () => +r.value;
+          write = v => { r.value = v; out.textContent = format(v, field); };
+        }
         break;
       }
       case 'number': {
@@ -193,6 +226,47 @@ export class Panel {
       sec.hidden = !(okTpl && anyVisible);
     }
   }
+}
+
+export const TABS = [
+  { id: 'photo', label: 'Photo' },
+  { id: 'text', label: 'Text' },
+  { id: 'logo', label: 'Logo' },
+  { id: 'style', label: 'Style' },
+  { id: 'export', label: 'Export' }
+];
+
+/**
+ * Tab bar over the whole sidebar. Sections carry `data-tab`, including the
+ * hand-written ones, so one switcher governs every group.
+ */
+export function buildTabs(host, onSwitch) {
+  host.innerHTML = '';
+  const buttons = new Map();
+
+  const setTab = id => {
+    for (const [tabId, b] of buttons) {
+      const on = tabId === id;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+    }
+    document.querySelectorAll('.sidebar .group[data-tab]').forEach(sec => {
+      sec.classList.toggle('off-tab', sec.dataset.tab !== id);
+    });
+    onSwitch?.(id);
+  };
+
+  for (const t of TABS) {
+    const b = el('button', 'tab');
+    b.type = 'button';
+    b.textContent = t.label;
+    b.setAttribute('role', 'tab');
+    b.addEventListener('click', () => setTab(t.id));
+    buttons.set(t.id, b);
+    host.appendChild(b);
+  }
+  setTab('photo');
+  return setTab;
 }
 
 /** Spec-strip editor (variable-length, so it sits outside SCHEMA). */
