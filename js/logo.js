@@ -1,0 +1,117 @@
+/* ------------------------------------------------------------------
+   logo.js — logo geometry, background wrapper, and painting
+   ------------------------------------------------------------------
+   Geometry is deliberately separated from painting: the canvas drag
+   handler needs to know where the logo *is* without drawing anything.
+------------------------------------------------------------------- */
+
+import { unit, contain, roundRectPath, shieldPath, circlePath, rgba } from './draw.js';
+
+const ANCHORS = {
+  'top-left': [0, 0], 'top-center': [0.5, 0], 'top-right': [1, 0],
+  'mid-left': [0, 0.5], 'mid-center': [0.5, 0.5], 'mid-right': [1, 0.5],
+  'bottom-left': [0, 1], 'bottom-center': [0.5, 1], 'bottom-right': [1, 1]
+};
+
+/**
+ * Work out the wrapper rectangle and the art rectangle inside it.
+ * `defaults` lets a template suggest its own anchor/inset, which the user's
+ * explicit settings always override.
+ */
+export function logoGeometry(S, W, H, img) {
+  const k = unit(W, H);
+  const L = S.logo, Wr = L.wrapper;
+  const pad = L.padding * k;
+
+  const artW = L.size * k;
+  const ar = img ? img.naturalWidth / img.naturalHeight : 1;
+  const artH = artW / (ar || 1);
+
+  // Wrapper box sized to fully contain the artwork plus padding.
+  let ww, wh, radius = Wr.radius * k, shape = Wr.shape;
+  const square = Math.max(artW, artH) + pad * 2;
+
+  switch (shape) {
+    case 'none':    ww = artW; wh = artH; break;
+    case 'circle':  ww = wh = square; radius = square / 2; break;
+    case 'square':  ww = wh = square; radius = 0; break;
+    case 'rounded': ww = wh = square; break;
+    case 'pill':    ww = artW + pad * 2.6; wh = artH + pad * 1.6; radius = wh / 2; break;
+    case 'shield':  ww = Math.max(artW, artH * 0.8) + pad * 2; wh = ww * 1.22; break;
+    case 'banner':  ww = W; wh = artH + pad * 2; radius = 0; break;
+    default:        ww = artW; wh = artH;
+  }
+
+  // Centre point from the anchor (or the dragged custom position).
+  let cx, cy;
+  if (L.position === 'custom') {
+    cx = L.customX * W;
+    cy = L.customY * H;
+  } else {
+    const [ax, ay] = ANCHORS[L.position] || ANCHORS['bottom-right'];
+    const ox = L.offsetX * k, oy = L.offsetY * k;
+    cx = ax === 0 ? ox + ww / 2 : ax === 1 ? W - ox - ww / 2 : W / 2 + ox;
+    cy = ay === 0 ? oy + wh / 2 : ay === 1 ? H - oy - wh / 2 : H / 2 + oy;
+  }
+  if (shape === 'banner') cx = W / 2;
+
+  // Let the badge run off the edge, the way dealer templates usually sit it.
+  // Skipped for a dragged logo: an explicit placement always wins, otherwise
+  // the badge would refuse to follow the pointer vertically.
+  if (L.position !== 'custom') {
+    if (Wr.bleed === 'bottom') cy = H - wh * 0.30;
+    else if (Wr.bleed === 'corner') {
+      cy = H - wh * 0.30;
+      cx = cx > W / 2 ? W - ww * 0.30 : ww * 0.30;
+    }
+  }
+
+  // The shield tapers, so nudge the artwork up into its fat half.
+  const artCy = shape === 'shield' ? cy - wh * 0.08 : cy;
+
+  return {
+    shape, radius,
+    wrapper: { x: cx - ww / 2, y: cy - wh / 2, w: ww, h: wh, cx, cy },
+    art: { x: cx - artW / 2, y: artCy - artH / 2, w: artW, h: artH }
+  };
+}
+
+export function drawLogo(ctx, S, W, H, img) {
+  if (!img) return null;
+  const geo = logoGeometry(S, W, H, img);
+  const { wrapper: box, shape, radius } = geo;
+  const Wr = S.logo.wrapper;
+  const k = unit(W, H);
+
+  ctx.save();
+  ctx.globalAlpha = S.logo.opacity;
+
+  if (shape !== 'none' && Wr.opacity > 0) {
+    ctx.save();
+    if (Wr.shadow > 0) {
+      ctx.shadowColor = rgba('#000000', Wr.shadow * 0.55);
+      ctx.shadowBlur = 34 * k;
+      ctx.shadowOffsetY = 10 * k;
+    }
+    if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2);
+    else if (shape === 'shield') shieldPath(ctx, box.x, box.y, box.w, box.h, radius);
+    else roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
+
+    ctx.fillStyle = rgba(Wr.fill, Wr.opacity);
+    ctx.fill();
+    ctx.restore();
+
+    if (Wr.borderWidth > 0) {
+      if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2 - Wr.borderWidth * k / 2);
+      else if (shape === 'shield') shieldPath(ctx, box.x, box.y, box.w, box.h, radius);
+      else roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
+      ctx.strokeStyle = Wr.borderColor;
+      ctx.lineWidth = Wr.borderWidth * k;
+      ctx.stroke();
+    }
+  }
+
+  contain(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h);
+  ctx.restore();
+  return geo;
+}
