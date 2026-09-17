@@ -295,19 +295,44 @@ async function buildExportCanvas() {
   return out;
 }
 
+/**
+ * Hand a finished file to the viewer.
+ *
+ * A normal web host takes the anchor route. Published as a Claude artifact,
+ * the frame is sandboxed and a page-initiated download is silently inert, so
+ * the host's own save capability is used when it is there.
+ */
+async function saveFile(blob, filename) {
+  let host = null;
+  try { host = (await window.claude?.use?.('downloads')) ?? null; } catch { host = null; }
+
+  if (host) {
+    try {
+      await host.save({ filename, data: blob });
+      toast('Image saved.');
+    } catch (err) {
+      toast(err?.code === 'declined' ? 'Save cancelled.' : 'The image could not be saved here.');
+    }
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('Image downloaded.');
+}
+
 async function download() {
   const out = await buildExportCanvas();
   const fmt = state.S.canvas.format;
   const mime = fmt === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const name = `${slug(state.S.text.model)}-${state.S.template}.${fmt === 'jpeg' ? 'jpg' : 'png'}`;
   out.toBlob(blob => {
     if (!blob) return toast('Export failed — try a smaller export scale.');
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${slug(state.S.text.model)}-${state.S.template}.${fmt === 'jpeg' ? 'jpg' : 'png'}`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast('Image downloaded.');
+    saveFile(blob, name);
   }, mime, 0.92);
 }
 
