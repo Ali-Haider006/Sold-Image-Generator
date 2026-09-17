@@ -5,7 +5,7 @@
    handler needs to know where the logo *is* without drawing anything.
 ------------------------------------------------------------------- */
 
-import { unit, contain, roundRectPath, shieldPath, circlePath, rgba } from './draw.js';
+import { unit, contain, knockout, roundRectPath, shieldPath, circlePath, rgba } from './draw.js';
 
 const ANCHORS = {
   'top-left': [0, 0], 'top-center': [0.5, 0], 'top-right': [1, 0],
@@ -80,8 +80,23 @@ export function logoGeometry(S, W, H, img) {
   };
 }
 
-export function drawLogo(ctx, S, W, H, img) {
+/**
+ * Which uploaded file this design's logo should draw from.
+ * A design can ask for the reversed mark; it only gets one if it exists.
+ */
+export function pickLogo(S, A) {
+  if (!A) return null;
+  return (S.logo.variant === 'reversed' && A.logoAlt) ? A.logoAlt : A.logo;
+}
+
+export function drawLogo(ctx, S, W, H, A) {
+  const img = pickLogo(S, A);
   if (!img) return null;
+  // Knockout is the fallback for a dark ground with no reversed asset. A real
+  // reversed file is already the right colour and keeps its inner detail, so
+  // flattening it would throw that away.
+  const usingReversed = S.logo.variant === 'reversed' && A?.logoAlt;
+  const flatten = S.logo.knockout && !usingReversed;
   const geo = logoGeometry(S, W, H, img);
   const { wrapper: box, shape, radius } = geo;
   const Wr = S.logo.wrapper;
@@ -115,7 +130,11 @@ export function drawLogo(ctx, S, W, H, img) {
     }
   }
 
-  contain(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h);
+  if (flatten) {
+    knockout(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h, S.logo.knockoutColor);
+  } else {
+    contain(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h);
+  }
   ctx.restore();
   return geo;
 }

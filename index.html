@@ -54,6 +54,21 @@
       <input type="file" id="logo-file" accept="image/*" hidden>
     </div>
 
+    <details class="fonts-note">
+      <summary>Reversed logo — for designs that sit the mark on a dark ground</summary>
+      <p class="note">Some designs place the logo straight onto the brand colour with no white badge
+        behind it. Add your white / reversed mark here and those designs will use it. Without one they
+        fall back to flattening the main logo to a single colour, which keeps the silhouette but loses
+        any inner detail.</p>
+      <div id="logo-alt-drop" class="drop" tabindex="0" role="button" aria-label="Upload the reversed logo">
+        <strong>Reversed logo</strong>
+        <span>Optional — white version, PNG with transparency</span>
+        <em id="logo-alt-name"></em>
+        <canvas class="drop-thumb dark" id="logo-alt-thumb" width="240" height="120" hidden></canvas>
+      </div>
+      <input type="file" id="logo-alt-file" accept="image/*" hidden>
+    </details>
+
     <label class="field">
       <span>Boat name</span>
       <textarea id="intake-model" rows="2" placeholder="2026 SEA FOX&#10;268 COMMANDER"></textarea>

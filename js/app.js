@@ -23,7 +23,7 @@ import {
 
 const $ = sel => document.querySelector(sel);
 const LS = {
-  logo: 'sig.logo.v2', model: 'sig.model.v2',
+  logo: 'sig.logo.v2', logoAlt: 'sig.logoalt.v1', model: 'sig.model.v2',
   settings: 'sig.designs.v3', fonts: 'sig.fonts.v2'
 };
 
@@ -36,7 +36,7 @@ const saveJSON = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)
 
 const state = {
   screen: 'intake',
-  assets: { boat: null, logo: null },
+  assets: { boat: null, logo: null, logoAlt: null },
   palette: null,
   model: '',
   settings: {},          // design id -> settings
@@ -66,7 +66,11 @@ const persist = () => saveJSON(LS.settings, state.settings);
 function applyModelToAll() {
   const text = state.model.trim();
   if (!text) return;
-  for (const d of DESIGNS) state.settings[d.id].text.model = text;
+  // A design may want the shared name shaped differently — design 5 sets it
+  // on one line where the others stack it.
+  for (const d of DESIGNS) {
+    state.settings[d.id].text.model = d.modelTransform ? d.modelTransform(text) : text;
+  }
 }
 
 /**
@@ -179,6 +183,20 @@ async function setLogo(file) {
     drawThumb($('#logo-thumb'), img);
     runExtraction();
     gateIntake();
+  } catch { toast('That file could not be read as an image.'); }
+}
+
+async function setLogoAlt(file) {
+  if (!file?.type.startsWith('image/')) return toast('Pick an image file for the reversed logo.');
+  try {
+    const { img, dataURL } = await fileToImage(file);
+    state.assets.logoAlt = img;
+    saveJSON(LS.logoAlt, dataURL);
+    $('#logo-alt-drop').classList.add('filled');
+    $('#logo-alt-name').textContent = file.name;
+    drawThumb($('#logo-alt-thumb'), img);
+    scheduleRender();
+    toast('Reversed logo added.');
   } catch { toast('That file could not be read as an image.'); }
 }
 
@@ -347,7 +365,7 @@ function onControlChange(key) {
 }
 
 function syncSpecsVisibility() {
-  $('#specs-group').hidden = S().template !== 'editorial';
+  $('#specs-group').hidden = !['editorial', 'design-5'].includes(S().template);
 }
 
 function paintEditorAssets() {
@@ -690,6 +708,7 @@ document.addEventListener('click', e => {
 
 wireDrop($('#boat-drop'), $('#boat-file'), setBoat);
 wireDrop($('#logo-drop'), $('#logo-file'), setLogo);
+wireDrop($('#logo-alt-drop'), $('#logo-alt-file'), setLogoAlt);
 
 $('#intake-model').addEventListener('input', e => {
   state.model = e.target.value;
@@ -750,6 +769,19 @@ if (savedLogo) {
     gateIntake();
   };
   img.src = savedLogo;
+}
+
+const savedLogoAlt = loadJSON(LS.logoAlt);
+if (savedLogoAlt) {
+  const img = new Image();
+  img.onload = () => {
+    state.assets.logoAlt = img;
+    $('#logo-alt-drop').classList.add('filled');
+    $('#logo-alt-name').textContent = 'Saved reversed logo';
+    drawThumb($('#logo-alt-thumb'), img);
+    scheduleRender();
+  };
+  img.src = savedLogoAlt;
 }
 
 document.fonts?.addEventListener?.('loadingdone', () => {

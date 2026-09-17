@@ -128,6 +128,57 @@ const FULL_BLEED = {
   photo: { zoom: 1.02, offsetX: 0, offsetY: 0 }
 };
 
+/* Design 5, measured off the reference at 1200x800. Type sizes are my own
+   call rather than a supplied spec, so they are round-ish numbers chosen to
+   sit correctly against the reference's proportions. */
+const DESIGN_5 = {
+  template: 'design-5',
+  type: {
+    script: {
+      family: 'Breathing', weight: 400, size: 152, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#ffffff', fit: true
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 25.5, tracking: 2.4,
+      lineHeight: 1.3, transform: 'uppercase', color: '#dfe6f2', fit: true
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 17.5, tracking: 1.8,
+      lineHeight: 1.5, transform: 'uppercase', color: '#ffffff', fit: true
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX 268 COMMANDER',
+    specs: [
+      { label: 'Model',      value: '268 Commander' },
+      { label: 'Year',       value: '2026' },
+      { label: 'Length',     value: '26.0 ft' },
+      { label: 'Horsepower', value: '400hp' }
+    ]
+  },
+  logo: {
+    // No badge here — the mark sits straight on the navy, so it needs the
+    // reversed file, or a white knockout when none has been supplied.
+    variant: 'reversed', knockout: true, knockoutColor: '#ffffff',
+    position: 'custom', customX: 0.89, customY: 0.60,
+    size: 162, padding: 0,
+    wrapper: { shape: 'none', opacity: 0, shadow: 0, diameter: 0, bleed: 'none' }
+  },
+  rule: { show: false },
+  frame: {
+    // One continuous diagonal from the top band to the right edge — the navy
+    // it opens up is what the badge sits on, around 60% of the height.
+    topLeft: 0.081, topRight: 0.8225,
+    riseFrom: 0.338, riseTo: 1.0,
+    strip: 0.8625, stripFrom: 0.338, stripTo: 0.271,
+    specLeft: 0.375, specRight: 0.95,
+    textRight: 0.905, scriptY: 0.19, modelY: 0.328,
+    stripes: 3, stripeOpacity: 0.16
+  },
+  photo: { zoom: 1.04, offsetX: 0, offsetY: 0 }
+};
+
 export const DESIGNS = [
   {
     id: 'design-3', slot: 3, name: 'Bold Fade', status: 'ready',
@@ -159,6 +210,23 @@ export const DESIGNS = [
       S.divider.color2 = tint(r.primary, 0.78);
       S.rule.color = r.secondary;
       S.logo.wrapper.fill = r.light;
+    }
+  },
+  {
+    id: 'design-5', slot: 5, name: 'Signature Frame', status: 'ready',
+    blurb: 'Signature script on navy, photo cut to an angled frame, spec strip.',
+    preset: DESIGN_5,
+    /** The reference sets the boat name on one line, not stacked. */
+    modelTransform: t => t.replace(/\s*\n+\s*/g, ' '),
+    /** Navy ground and diagonals from the logo; type knocks out in white. */
+    paletteMap(S, r) {
+      S.brand.dark = r.primary;
+      S.brand.light = r.light;
+      S.photo.overlay = r.primary;
+      S.type.script.color = r.light;
+      S.type.model.color = tint(r.primary, 0.84);
+      S.type.spec.color = r.light;
+      S.logo.knockoutColor = r.light;
     }
   },
   {

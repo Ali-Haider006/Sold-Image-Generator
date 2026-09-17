@@ -242,6 +242,8 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .drop.filled { border-style: solid; border-color: var(--accent); }
+/* A reversed mark is white on transparent, so it needs a dark preview bed. */
+.drop-thumb.dark { background: #111c2e; }
 
 /* ---------- palette ---------- */
 

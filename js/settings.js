@@ -83,6 +83,21 @@ export const DEFAULTS = {
     fadeHold: 0.30      // how much of that reach stays solid before falling off
   },
 
+  // Design 5's angled photo frame. Every value is a fraction of the canvas,
+  // so the polygon's vertices are settings rather than constants.
+  frame: {
+    topLeft: 0.081,    // navy depth over the left of the photo
+    topRight: 0.8225,  // where the diagonal meets the right edge
+    riseFrom: 0.338,   // where the diagonal leaves the top band
+    riseTo: 1.0,       // 1.0 runs the diagonal all the way to the right side
+    strip: 0.8625,     // top of the spec strip
+    stripFrom: 0.338,  // where the strip's diagonal starts
+    stripTo: 0.271,    // where it reaches the bottom edge
+    specLeft: 0.375, specRight: 0.95,
+    textRight: 0.905, scriptY: 0.19, modelY: 0.328,
+    stripes: 3, stripeOpacity: 0.16
+  },
+
   // Solid panels for the full-bleed layout. All fractions of the canvas, so
   // the rectangles are designed geometry rather than boxes fitted to text.
   panels: {
@@ -115,6 +130,9 @@ export const DEFAULTS = {
   },
 
   logo: {
+    variant: 'main',            // main | reversed — which uploaded file to use
+    knockout: false,            // paint the silhouette flat, for dark grounds
+    knockoutColor: '#ffffff',
     position: 'bottom-right',   // 9 anchors, or 'custom' once dragged
     size: 190,                  // rendered width in design px
     offsetX: 48,                // inset from the anchored edge
@@ -317,6 +335,13 @@ export const SCHEMA = [
   {
     id: 'logo', tab: 'logo', title: 'Logo placement & size',
     fields: [
+      { key: 'logo.variant', label: 'Which logo file', type: 'select', options: [
+        { value: 'main', label: 'Main logo' },
+        { value: 'reversed', label: 'Reversed / white version' }
+      ] },
+      { key: 'logo.knockout', label: 'Flatten to one colour', type: 'checkbox' },
+      { key: 'logo.knockoutColor', label: 'Flat colour', type: 'color',
+        when: s => s.logo.knockout },
       { key: 'logo.position', label: 'Anchor', type: 'select', options: [
         { value: 'top-left', label: 'Top left' }, { value: 'top-center', label: 'Top centre' }, { value: 'top-right', label: 'Top right' },
         { value: 'mid-left', label: 'Middle left' }, { value: 'mid-center', label: 'Centre' }, { value: 'mid-right', label: 'Middle right' },
@@ -362,9 +387,9 @@ export const SCHEMA = [
     id: 'content', tab: 'text', title: 'Text content',
     fields: [
       { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
-      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-4', 'diagonal-split', 'full-bleed'] },
+      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-4', 'design-5', 'diagonal-split', 'full-bleed'] },
       { key: 'text.model', label: 'Boat / model', type: 'textarea', rows: 2 },
-      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2 }
+      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
     ]
   },
   {
@@ -378,10 +403,30 @@ export const SCHEMA = [
     ]
   },
   typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 500, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-4', 'diagonal-split', 'full-bleed'] }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-4', 'design-5', 'diagonal-split', 'full-bleed'] }),
   typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 60, show: ['editorial'], familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5'], familyWhen: st => !st.siteType.lockSecondary }),
+  {
+    id: 'frame', tab: 'style', title: 'Angled photo frame', show: ['design-5'],
+    note: 'The photo is clipped to a polygon. Each slider moves one of its vertices, as a fraction of the canvas.',
+    fields: [
+      { key: 'frame.topLeft', label: 'Navy over left', type: 'range', min: 0, max: 0.6, step: 0.002 },
+      { key: 'frame.topRight', label: 'Navy over right', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'frame.riseFrom', label: 'Diagonal start', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.riseTo', label: 'Diagonal end', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.strip', label: 'Spec strip top', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'frame.stripFrom', label: 'Strip diagonal start', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.stripTo', label: 'Strip diagonal end', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.specLeft', label: 'Specs left', type: 'range', min: 0, max: 0.9, step: 0.002 },
+      { key: 'frame.specRight', label: 'Specs right', type: 'range', min: 0.2, max: 1, step: 0.002 },
+      { key: 'frame.textRight', label: 'Text right edge', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'frame.scriptY', label: 'Script height', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'frame.modelY', label: 'Boat name height', type: 'range', min: 0, max: 0.9, step: 0.002 },
+      { key: 'frame.stripes', label: 'Accent diagonals', type: 'range', min: 0, max: 8, step: 1 },
+      { key: 'frame.stripeOpacity', label: 'Diagonal strength', type: 'range', min: 0, max: 0.6, step: 0.005 }
+    ]
+  },
   {
     id: 'panels', tab: 'style', title: 'Solid panels', show: ['full-bleed'],
     note: 'The tag block and the footer bar are plain rectangles with their own geometry — they are not sized to the text inside them.',

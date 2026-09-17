@@ -152,6 +152,35 @@ export function contain(ctx, img, x, y, w, h) {
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+/**
+ * Paint an image as a flat-colour silhouette taken from its alpha channel.
+ *
+ * This is how a dark logo survives on a dark ground when no reversed asset
+ * exists. Internal detail is lost — a compass rose becomes a solid disc — so
+ * a supplied reversed file is always the better answer when there is one.
+ * The scratch canvas is sized to the live device scale so a 3x export is not
+ * fed an upscaled 1x silhouette.
+ */
+export function knockout(ctx, img, x, y, w, h, color) {
+  if (!img || w <= 0 || h <= 0) return;
+  const scale = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.round(w * scale));
+  off.height = Math.max(1, Math.round(h * scale));
+  const o = off.getContext('2d');
+
+  const ir = img.naturalWidth / img.naturalHeight;
+  let dw = off.width, dh = off.width / ir;
+  if (dh > off.height) { dh = off.height; dw = off.height * ir; }
+  o.drawImage(img, (off.width - dw) / 2, (off.height - dh) / 2, dw, dh);
+
+  o.globalCompositeOperation = 'source-in';
+  o.fillStyle = color;
+  o.fillRect(0, 0, off.width, off.height);
+
+  ctx.drawImage(off, x, y, w, h);
+}
+
 export const filterString = p =>
   `brightness(${p.brightness}) contrast(${p.contrast}) saturate(${p.saturate})`;
 

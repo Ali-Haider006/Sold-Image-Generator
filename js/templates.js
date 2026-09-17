@@ -19,7 +19,7 @@
 import {
   unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath
 } from './draw.js';
-import { drawLogo, logoGeometry } from './logo.js';
+import { drawLogo, logoGeometry, pickLogo } from './logo.js';
 
 /** Portrait and square canvases stack their regions instead of splitting. */
 const isTall = (W, H) => H / W > 1.05;
@@ -129,7 +129,7 @@ function boldLeft(ctx, S, A, W, H) {
     textStack(ctx, S, items, { x: W * 0.062, y: H * 0.10, maxWidth: W * 0.44, scale: k, W, H });
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 boldLeft.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'corner' } };
 boldLeft.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
@@ -194,7 +194,7 @@ function diagonalSplit(ctx, S, A, W, H) {
       { x: W * 0.065, maxWidth: split - notch * 0.5 - W * 0.12, scale: k }, H / 2);
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 diagonalSplit.defaults = { position: 'top-right', wrapper: { shape: 'shield', bleed: 'none' } };
 diagonalSplit.surfaces = { display: 'light', script: 'light', model: 'light', tagline: 'light', spec: 'light' };
@@ -248,7 +248,7 @@ function fullBleed(ctx, S, A, W, H) {
 
   const fx = W * 0.046;
   const mid = barY + barH / 2;
-  const geo = A.logo ? logoGeometry(S, W, H, A.logo) : null;
+  const geo = pickLogo(S, A) ? logoGeometry(S, W, H, pickLogo(S, A)) : null;
   // The badge overlaps the bar, so the footer text stops short of it.
   const guard = geo && geo.wrapper.x > W * 0.5
     ? geo.wrapper.x - W * 0.025
@@ -279,7 +279,7 @@ function fullBleed(ctx, S, A, W, H) {
     }, W, H);
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 fullBleed.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'none' } };
 fullBleed.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
@@ -357,12 +357,139 @@ function editorial(ctx, S, A, W, H) {
     centredStack(ctx, S, head, { x, maxWidth: maxW, scale: k }, H / 2);
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 editorial.defaults = { position: 'top-right', wrapper: { shape: 'shield', bleed: 'none' } };
 editorial.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
 editorial.displayFont = 'Playfair Display';
 
+
+/**
+ * Four label/value columns with hairline dividers.
+ *
+ * Shared by the editorial layout, which sets it on white, and design 5,
+ * which sets it on the navy ground — hence the explicit colours.
+ */
+function specStrip(ctx, S, k, { x, y, w, h, labelColor, valueColor, dividerColor }) {
+  const specs = (S.text.specs || []).filter(sp => sp.label || sp.value);
+  if (!specs.length) return;
+
+  const cellW = w / specs.length;
+  const labelSpec = { ...S.type.spec, size: S.type.spec.size, color: labelColor };
+  const valueSpec = {
+    ...S.type.spec, weight: 400, transform: 'none',
+    tracking: Math.min(S.type.spec.tracking, 0.4),
+    size: S.type.spec.size * 1.02, color: valueColor
+  };
+
+  specs.forEach((sp, i) => {
+    const cx = x + cellW * i;
+    if (i > 0) {
+      ctx.fillStyle = dividerColor;
+      ctx.fillRect(cx, y + h * 0.26, 1, h * 0.48);
+    }
+    drawBlock(ctx, sp.label, labelSpec, {
+      x: cx + cellW / 2, y: y + h * 0.36, baseline: 'middle',
+      align: 'center', scale: k, maxWidth: cellW * 0.88
+    });
+    drawBlock(ctx, sp.value, valueSpec, {
+      x: cx + cellW / 2, y: y + h * 0.68, baseline: 'middle',
+      align: 'center', scale: k, maxWidth: cellW * 0.88
+    });
+  });
+}
+
+/* ================================================================
+   DESIGN 5 — signature script on navy, photo cut to an angled frame
+   ================================================================
+   The photo is clipped to a polygon, not a rectangle: a shallow navy band
+   across the top left, a diagonal riser, then a much deeper navy field on
+   the right that carries the script, the boat name and the badge. A second
+   diagonal cuts the spec strip in at the bottom. Every vertex is a setting,
+   so the angles can be dialled onto the reference.
+   ================================================================ */
+function framePath(ctx, W, H, F, tall) {
+  ctx.beginPath();
+  if (tall) {
+    // Stacked: a straight band top and bottom, no diagonals to lose.
+    ctx.moveTo(0, H * F.topRight);
+    ctx.lineTo(W, H * F.topRight);
+    ctx.lineTo(W, H * F.strip);
+    ctx.lineTo(0, H * F.strip);
+  } else {
+    ctx.moveTo(0, H * F.topLeft);
+    ctx.lineTo(W * F.riseFrom, H * F.topLeft);
+    ctx.lineTo(W * F.riseTo, H * F.topRight);
+    ctx.lineTo(W, H * F.topRight);
+    ctx.lineTo(W, H * F.strip);
+    ctx.lineTo(W * F.stripFrom, H * F.strip);
+    ctx.lineTo(W * F.stripTo, H);
+    ctx.lineTo(0, H);
+  }
+  ctx.closePath();
+}
+
+function design5(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+  const F = S.frame;
+
+  ctx.fillStyle = S.brand.dark;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative diagonals, drawn across the whole canvas and then covered by
+  // the photo — so they survive only in the navy, which is where they belong.
+  if (F.stripes > 0 && F.stripeOpacity > 0) {
+    ctx.save();
+    ctx.strokeStyle = rgba(S.brand.light, F.stripeOpacity);
+    ctx.lineWidth = Math.max(1, W * 0.004);
+    const lean = (F.riseTo - F.riseFrom) * W;
+    const gap = W * 0.055;
+    for (let i = 0; i < F.stripes; i++) {
+      const off = W * 0.80 + gap * i;
+      ctx.beginPath();
+      ctx.moveTo(off, H);
+      ctx.lineTo(off + lean, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  framePath(ctx, W, H, F, tall);
+  ctx.clip();
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+  ctx.restore();
+
+  // Script and boat name share a right edge; the name hangs below the
+  // script's descender rather than at a fixed offset, so a long boat name
+  // never collides with a long-tailed signature face.
+  const rx = W * F.textRight;
+  const script = block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: rx, y: H * F.scriptY, align: 'right', baseline: 'middle',
+    maxWidth: W * (tall ? 0.86 : 0.64), scale: k
+  }, W, H);
+
+  const modelY = Math.max(H * F.modelY, script.bottom + H * 0.018);
+  block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: rx, y: modelY, align: 'right', maxWidth: W * (tall ? 0.86 : 0.52), scale: k
+  }, W, H);
+
+  drawLogo(ctx, S, W, H, A);
+
+  const sy = H * F.strip;
+  specStrip(ctx, S, k, {
+    x: W * (tall ? 0.05 : F.specLeft), y: sy,
+    w: W * (tall ? 0.90 : F.specRight - F.specLeft), h: H - sy,
+    labelColor: S.type.spec.color,
+    valueColor: rgba(S.type.spec.color, 0.72),
+    dividerColor: rgba(S.brand.light, 0.26)
+  });
+}
+design5.defaults = { position: 'custom', wrapper: { shape: 'none', bleed: 'none' } };
+design5.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'dark' };
+design5.displayFont = 'Montserrat';
 
 /* ================================================================
    DESIGN 3 — "JUST SOLD" over a brand-coloured fade
@@ -423,7 +550,7 @@ function design3(ctx, S, A, W, H) {
   block(ctx, S, 'tagline', S.text.tagline, S.type.tagline,
     { x: cx, y, align: 'center', maxWidth: colMax, scale: k }, W, H);
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 design3.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'none' } };
 design3.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
@@ -504,7 +631,7 @@ function design4(ctx, S, A, W, H) {
   centredStack(ctx, S, items, { x, maxWidth: maxW, scale: k, W, H },
     tall ? H * 0.23 : H * 0.5);
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 design4.defaults = { position: 'top-right', wrapper: { shape: 'circle', bleed: 'none' } };
 design4.surfaces = { display: 'light', script: 'light', model: 'light', tagline: 'light', spec: 'light' };
@@ -512,6 +639,7 @@ design4.displayFont = 'Montserrat';
 
 export const RENDERERS = {
   'design-3': design3,
+  'design-5': design5,
   'design-4': design4,
   'bold-left': boldLeft,
   'diagonal-split': diagonalSplit,
