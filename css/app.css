@@ -14,11 +14,15 @@
   --accent-2: #3d7dff;
   --danger: #e2574c;
   --radius: 10px;
-  --sidebar: 372px;
+  --sidebar: 400px;
   font-synthesis-weight: none;
 }
 
 * { box-sizing: border-box; }
+
+/* Same specificity as `.screen.editor { display: grid }` would otherwise
+   beat `.screen[hidden]`, leaving a hidden screen visible. Settle it once. */
+[hidden] { display: none !important; }
 
 html, body { height: 100%; }
 
@@ -55,12 +59,18 @@ body {
 
 /* ---------- layout ---------- */
 
-.layout {
+/* ---------- screens ---------- */
+
+.screen { flex: 1 1 auto; min-height: 0; }
+
+.screen.editor {
   display: grid;
   grid-template-columns: var(--sidebar) minmax(0, 1fr);
-  flex: 1 1 auto;
-  min-height: 0;
 }
+
+/* Only the editor is a fixed one-screen app; the other two scroll. */
+body:not(.is-editor) { overflow: auto; }
+.screen.intake, .screen.gallery { overflow-y: auto; }
 .sidebar {
   overflow-y: auto; border-right: 1px solid var(--line);
   background: var(--panel); padding-bottom: 60px;
@@ -102,26 +112,58 @@ body {
 .group-body { padding: 4px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .note { margin: 0 0 4px; font-size: 12px; color: var(--ink-dim); line-height: 1.5; }
 
+/* ---------- sidebar tabs ---------- */
+
+.tabs {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  position: sticky; top: 0; z-index: 5;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.tab {
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--ink-dim); cursor: pointer;
+  padding: 12px 4px; font: 600 11.5px/1 inherit;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* A group outside the active tab is hidden without disturbing the
+   template-scoped `hidden` the schema already controls. */
+.group.off-tab { display: none; }
+
 /* ---------- rows ---------- */
 
-.row { display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: center; gap: 10px; }
+.row { display: grid; grid-template-columns: 108px minmax(0, 1fr); align-items: center; gap: 10px; }
 .row[hidden] { display: none; }
 .row-stack { grid-template-columns: 1fr; gap: 5px; }
 .row-check { grid-template-columns: 1fr auto; }
 .row-label { font-size: 12px; color: var(--ink-dim); }
 .row-input { display: flex; align-items: center; gap: 7px; min-width: 0; }
 
+/* Sliders are the primary control now, so the track is styled on the
+   pseudo-elements rather than the input's own background — `background-clip`
+   on an `appearance: none` range does not paint reliably across engines. */
 input[type="range"] {
-  flex: 1 1 auto; min-width: 0; height: 3px; -webkit-appearance: none; appearance: none;
-  background: var(--line); border-radius: 3px; outline-offset: 4px;
+  flex: 1 1 auto; min-width: 64px; height: 20px; margin: 0;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; cursor: pointer; outline-offset: 2px;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 3px; background: #2f4462;
 }
 input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--ink); border: 3px solid var(--accent); cursor: pointer;
+  -webkit-appearance: none; margin-top: -5px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--ink); border: 3px solid var(--accent); cursor: grab;
+}
+input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+input[type="range"]::-moz-range-track {
+  height: 5px; border-radius: 3px; background: #2f4462;
 }
 input[type="range"]::-moz-range-thumb {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--ink); border: 3px solid var(--accent); cursor: pointer;
+  width: 15px; height: 15px; border-radius: 50%; border: 3px solid var(--accent);
+  background: var(--ink); cursor: grab;
 }
 
 input[type="text"], input[type="number"], select, textarea {
@@ -134,8 +176,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 button:focus-visible, .drop:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
-.num { width: 64px; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums; }
-.num.wide { width: 100%; }
+/* Wins over the generic `input[type="number"] { width: 100% }` above, which
+   is an attribute selector and therefore outranks a bare class. */
+input[type="number"].num {
+  width: 64px; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums;
+}
+input[type="number"].readout-val {
+  flex: 0 0 auto; min-width: 44px; text-align: right;
+  font-size: 11.5px; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
 .unit { font-size: 11px; color: var(--ink-dim); flex: 0 0 auto; }
 .hex { flex: 1 1 auto; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 
@@ -192,6 +242,8 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .drop.filled { border-style: solid; border-color: var(--accent); }
+/* A reversed mark is white on transparent, so it needs a dark preview bed. */
+.drop-thumb.dark { background: #111c2e; }
 
 /* ---------- palette ---------- */
 
@@ -259,12 +311,112 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent);
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+
+
+/* ---------- intake ---------- */
+
+.intake-inner {
+  max-width: 760px; margin: 0 auto;
+  padding: 44px 20px 80px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.intake-inner h2 { font-size: 26px; margin: 0; letter-spacing: -.3px; }
+.gallery-head h2 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.2px; }
+.lede { margin: 0; color: var(--ink-dim); font-size: 14px; line-height: 1.6; max-width: 62ch; }
+
+.intake-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.drop.big { padding: 26px 18px; gap: 4px; }
+.drop-icon { font-size: 26px; line-height: 1; opacity: .5; }
+.drop-thumb {
+  margin-top: 12px; width: 100%; height: auto; max-height: 150px;
+  object-fit: contain; border-radius: 6px;
+  background: repeating-conic-gradient(#0e141d 0% 25%, #16202c 0% 50%) 0 0 / 14px 14px;
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span, .field-label { font-size: 12px; color: var(--ink-dim); }
+.field small { font-size: 11.5px; color: var(--ink-dim); opacity: .8; }
+.intake-palette { display: flex; flex-direction: column; gap: 10px; }
+
+.fonts-note {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 16px;
+}
+.fonts-note summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.fonts-note code {
+  background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 11.5px;
+}
+.font-slots { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.font-slot {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 12px;
+}
+.font-slot strong { font-size: 13px; }
+.font-status { font-size: 11.5px; color: var(--ink-dim); }
+.font-slot.exact { border-color: var(--accent); }
+.font-slot.exact .font-status { color: var(--accent); }
+
+.big-btn { padding: 13px; font-size: 14px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover { border-color: var(--line); }
+
+/* ---------- gallery ---------- */
+
+.gallery-inner { max-width: 1240px; margin: 0 auto; padding: 32px 20px 80px; }
+.gallery-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+}
+.design-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.design-card {
+  display: flex; flex-direction: column; gap: 0;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden;
+  padding: 0; text-align: left; color: var(--ink); font: inherit; cursor: pointer;
+  transition: border-color .15s, transform .15s;
+}
+button.design-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.design-thumb { display: block; width: 100%; height: auto; background: #0a0e14; }
+.design-meta { display: flex; flex-direction: column; gap: 4px; padding: 13px 15px 15px; }
+.design-meta strong { font-size: 14px; }
+.design-blurb { font-size: 11.5px; color: var(--ink-dim); line-height: 1.45; }
+.design-slot {
+  align-self: flex-start; font-size: 10px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; margin-bottom: 2px;
+}
+.design-slot.ready { background: rgba(43, 184, 179, .16); color: var(--accent); }
+.design-slot.draft { background: rgba(255, 255, 255, .07); color: var(--ink-dim); }
+.design-slot.waiting { background: rgba(255, 255, 255, .05); color: var(--ink-dim); }
+
+.design-card.pending { cursor: default; border-style: dashed; opacity: .62; }
+.pending-thumb {
+  aspect-ratio: 3 / 2; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(135deg, #111924 0 10px, #0d141d 10px 20px);
+}
+.pending-thumb span { font-size: 40px; font-weight: 800; color: var(--line); }
+
+/* ---------- editor sidebar assets ---------- */
+
+.editor-assets { display: flex; flex-direction: column; gap: 8px; }
+.asset-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-dim); }
+.asset-row canvas {
+  width: 88px; height: 58px; border-radius: 6px; border: 1px solid var(--line);
+  background: repeating-conic-gradient(#0e141d 0% 25%, #16202c 0% 50%) 0 0 / 12px 12px;
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 900px) {
   html, body { height: auto; }
   body { overflow: visible; }
-  .layout { grid-template-columns: 1fr; }
+  .screen.editor { grid-template-columns: 1fr; }
+  .intake-grid { grid-template-columns: 1fr; }
+  .font-slot { grid-template-columns: 1fr auto; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); order: 2; }
   .stage { order: 1; padding: 16px; }
   #preview { max-height: 52svh; }

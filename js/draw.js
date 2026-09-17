@@ -87,7 +87,7 @@ export function drawBlock(ctx, text, spec, opts = {}) {
   setFont(ctx, spec, size);
   let widest = Math.max(...rows.map(r => measureTracked(ctx, r, tracking)));
 
-  if (widest > maxWidth && widest > 0) {
+  if (spec.fit !== false && widest > maxWidth && widest > 0) {
     const f = maxWidth / widest;
     size *= f; tracking *= f; widest = maxWidth;
     setFont(ctx, spec, size);
@@ -121,14 +121,26 @@ export function drawBlock(ctx, text, spec, opts = {}) {
 
 /* ---------- images ---------- */
 
-/** object-fit: cover, with a focal point and extra zoom. */
-export function cover(ctx, img, x, y, w, h, focusX = 0.5, focusY = 0.5, zoom = 1) {
+/**
+ * object-fit: cover, then a free translation.
+ *
+ * The earlier focal-point form positioned the image by interpolating its
+ * OVERFLOW, so when the photo and the frame shared an aspect ratio the
+ * overflow was zero and the control did nothing at all. Cover-fitting to the
+ * centre and translating by an explicit offset always moves, at any zoom.
+ * `offsetX`/`offsetY` are fractions of the frame.
+ */
+export function cover(ctx, img, x, y, w, h, p = {}) {
   if (!img) return;
+  const { offsetX = 0, offsetY = 0, zoom = 1 } = p;
   const ir = img.naturalWidth / img.naturalHeight;
-  let dw = w, dh = h;
+  let dw, dh;
   if (ir > w / h) { dh = h; dw = dh * ir; } else { dw = w; dh = dw / ir; }
   dw *= zoom; dh *= zoom;
-  ctx.drawImage(img, x + (w - dw) * focusX, y + (h - dh) * focusY, dw, dh);
+  ctx.drawImage(img,
+    x + (w - dw) / 2 + offsetX * w,
+    y + (h - dh) / 2 + offsetY * h,
+    dw, dh);
 }
 
 /** object-fit: contain — used for the logo, which must never be cropped. */
@@ -140,6 +152,35 @@ export function contain(ctx, img, x, y, w, h) {
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+/**
+ * Paint an image as a flat-colour silhouette taken from its alpha channel.
+ *
+ * This is how a dark logo survives on a dark ground when no reversed asset
+ * exists. Internal detail is lost — a compass rose becomes a solid disc — so
+ * a supplied reversed file is always the better answer when there is one.
+ * The scratch canvas is sized to the live device scale so a 3x export is not
+ * fed an upscaled 1x silhouette.
+ */
+export function knockout(ctx, img, x, y, w, h, color) {
+  if (!img || w <= 0 || h <= 0) return;
+  const scale = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.round(w * scale));
+  off.height = Math.max(1, Math.round(h * scale));
+  const o = off.getContext('2d');
+
+  const ir = img.naturalWidth / img.naturalHeight;
+  let dw = off.width, dh = off.width / ir;
+  if (dh > off.height) { dh = off.height; dw = off.height * ir; }
+  o.drawImage(img, (off.width - dw) / 2, (off.height - dh) / 2, dw, dh);
+
+  o.globalCompositeOperation = 'source-in';
+  o.fillStyle = color;
+  o.fillRect(0, 0, off.width, off.height);
+
+  ctx.drawImage(off, x, y, w, h);
+}
+
 export const filterString = p =>
   `brightness(${p.brightness}) contrast(${p.contrast}) saturate(${p.saturate})`;
 
@@ -147,7 +188,7 @@ export const filterString = p =>
 export function photo(ctx, img, p, x, y, w, h) {
   ctx.save();
   ctx.filter = filterString(p);
-  cover(ctx, img, x, y, w, h, p.focusX, p.focusY, p.zoom);
+  cover(ctx, img, x, y, w, h, p);
   ctx.filter = 'none';
   if (p.overlayOpacity > 0) {
     ctx.fillStyle = rgba(p.overlay, p.overlayOpacity);
@@ -159,8 +200,12 @@ export function photo(ctx, img, p, x, y, w, h) {
 /**
  * Directional gradient scrim so light type stays legible over a photo.
  * Eased with extra stops — a two-stop linear gradient reads as a visible band.
+ *
+ * `hold` (0..1 of the reach) keeps the scrim fully opaque before it starts to
+ * fall off, which is what separates a soft vignette from a solid colour panel
+ * that dissolves into the photo.
  */
-export function scrim(ctx, x, y, w, h, color, strength, dir = 'left', reach = 0.62) {
+export function scrim(ctx, x, y, w, h, color, strength, dir = 'left', reach = 0.62, hold = 0) {
   if (strength <= 0) return;
   const [x0, y0, x1, y1] = {
     left: [x, y, x + w * reach, y],
@@ -169,10 +214,28 @@ export function scrim(ctx, x, y, w, h, color, strength, dir = 'left', reach = 0.
     bottom: [x, y + h, x, y + h * (1 - reach)]
   }[dir];
   const g = ctx.createLinearGradient(x0, y0, x1, y1);
-  [[0, 1], [0.35, 0.82], [0.6, 0.45], [0.82, 0.14], [1, 0]]
-    .forEach(([stop, a]) => g.addColorStop(stop, rgba(color, a * strength)));
+  const k = Math.max(0, Math.min(0.9, hold));
+  const at = t => k + (1 - k) * t;
+  [[0, 1], [k, 1], [at(0.35), 0.82], [at(0.6), 0.45], [at(0.82), 0.14], [1, 0]]
+    .forEach(([stop, a]) => g.addColorStop(Math.min(1, stop), rgba(color, a * strength)));
   ctx.fillStyle = g;
   ctx.fillRect(x, y, w, h);
+}
+
+/**
+ * Photo region bounded on its left by a straight diagonal or a left-pointing
+ * chevron. `topX`/`midX`/`bottomX` are fractions of the canvas width.
+ */
+export function dividerPath(ctx, W, H, d, shift = 0) {
+  const top = (d.topX + shift) * W;
+  const bottom = (d.bottomX + shift) * W;
+  ctx.beginPath();
+  ctx.moveTo(top, 0);
+  ctx.lineTo(W, 0);
+  ctx.lineTo(W, H);
+  ctx.lineTo(bottom, H);
+  if (d.style === 'chevron') ctx.lineTo((d.midX + shift) * W, H / 2);
+  ctx.closePath();
 }
 
 /* ---------- shapes ---------- */

@@ -5,7 +5,7 @@
    handler needs to know where the logo *is* without drawing anything.
 ------------------------------------------------------------------- */
 
-import { unit, contain, roundRectPath, shieldPath, circlePath, rgba } from './draw.js';
+import { unit, contain, knockout, roundRectPath, shieldPath, circlePath, rgba } from './draw.js';
 
 const ANCHORS = {
   'top-left': [0, 0], 'top-center': [0.5, 0], 'top-right': [1, 0],
@@ -29,7 +29,11 @@ export function logoGeometry(S, W, H, img) {
 
   // Wrapper box sized to fully contain the artwork plus padding.
   let ww, wh, radius = Wr.radius * k, shape = Wr.shape;
-  const square = Math.max(artW, artH) + pad * 2;
+  // An explicit diameter wins, so a badge can be sized to a reference
+  // directly instead of being inferred backwards from padding.
+  const square = Wr.diameter > 0
+    ? Wr.diameter * k
+    : Math.max(artW, artH) + pad * 2;
 
   switch (shape) {
     case 'none':    ww = artW; wh = artH; break;
@@ -58,11 +62,11 @@ export function logoGeometry(S, W, H, img) {
   // Let the badge run off the edge, the way dealer templates usually sit it.
   // Skipped for a dragged logo: an explicit placement always wins, otherwise
   // the badge would refuse to follow the pointer vertically.
-  if (L.position !== 'custom') {
-    if (Wr.bleed === 'bottom') cy = H - wh * 0.30;
-    else if (Wr.bleed === 'corner') {
-      cy = H - wh * 0.30;
-      cx = cx > W / 2 ? W - ww * 0.30 : ww * 0.30;
+  if (L.position !== 'custom' && Wr.bleed !== 'none') {
+    const over = Math.max(0, Math.min(0.6, Wr.bleedAmount ?? 0.3));
+    cy = H - wh / 2 + wh * over;
+    if (Wr.bleed === 'corner') {
+      cx = cx > W / 2 ? W - ww / 2 + ww * over : ww / 2 - ww * over;
     }
   }
 
@@ -76,8 +80,23 @@ export function logoGeometry(S, W, H, img) {
   };
 }
 
-export function drawLogo(ctx, S, W, H, img) {
+/**
+ * Which uploaded file this design's logo should draw from.
+ * A design can ask for the reversed mark; it only gets one if it exists.
+ */
+export function pickLogo(S, A) {
+  if (!A) return null;
+  return (S.logo.variant === 'reversed' && A.logoAlt) ? A.logoAlt : A.logo;
+}
+
+export function drawLogo(ctx, S, W, H, A) {
+  const img = pickLogo(S, A);
   if (!img) return null;
+  // Knockout is the fallback for a dark ground with no reversed asset. A real
+  // reversed file is already the right colour and keeps its inner detail, so
+  // flattening it would throw that away.
+  const usingReversed = S.logo.variant === 'reversed' && A?.logoAlt;
+  const flatten = S.logo.knockout && !usingReversed;
   const geo = logoGeometry(S, W, H, img);
   const { wrapper: box, shape, radius } = geo;
   const Wr = S.logo.wrapper;
@@ -111,7 +130,11 @@ export function drawLogo(ctx, S, W, H, img) {
     }
   }
 
-  contain(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h);
+  if (flatten) {
+    knockout(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h, S.logo.knockoutColor);
+  } else {
+    contain(ctx, img, geo.art.x, geo.art.y, geo.art.w, geo.art.h);
+  }
   ctx.restore();
   return geo;
 }

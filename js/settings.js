@@ -70,15 +70,55 @@ export const DEFAULTS = {
   },
 
   photo: {
-    focusX: 0.5,        // 0..1, which part of the photo stays in frame
-    focusY: 0.5,
     zoom: 1,
+    offsetX: 0,         // free pan, as a fraction of the frame
+    offsetY: 0,
     brightness: 1,
     contrast: 1,
     saturate: 1,
     overlay: '#0a1730',
     overlayOpacity: 0,
-    scrimStrength: 0.92 // darkness of the gradient the headline sits on
+    fadeOpacity: 0.92,  // how dark the fade gets at full strength
+    fadeLength: 0.66,   // how far across the frame it reaches
+    fadeHold: 0.30      // how much of that reach stays solid before falling off
+  },
+
+  // Design 5's angled photo frame. Every value is a fraction of the canvas,
+  // so the polygon's vertices are settings rather than constants.
+  frame: {
+    topLeft: 0.081,    // navy depth over the left of the photo
+    topRight: 0.8225,  // where the diagonal meets the right edge
+    riseFrom: 0.338,   // where the diagonal leaves the top band
+    riseTo: 1.0,       // 1.0 runs the diagonal all the way to the right side
+    strip: 0.8625,     // top of the spec strip
+    stripFrom: 0.338,  // where the strip's diagonal starts
+    stripTo: 0.271,    // where it reaches the bottom edge
+    specLeft: 0.375, specRight: 0.95,
+    textRight: 0.905, scriptY: 0.19, modelY: 0.328,
+    stripes: 3, stripeOpacity: 0.16
+  },
+
+  // Solid panels for the full-bleed layout. All fractions of the canvas, so
+  // the rectangles are designed geometry rather than boxes fitted to text.
+  panels: {
+    tagX: 0, tagY: 0, tagW: 0.31, tagH: 0.3625,
+    tagFill: '#12244d', tagOpacity: 1,
+    barH: 0.181, barFill: '#12244d', barOpacity: 1,
+    dividerX: 0.4125,
+    fade: 0                   // 0 = hard edge above the bar
+  },
+
+  // How wide the text column is allowed to be, as a fraction of the canvas.
+  // This is what caps a headline's size when "shrink to fit" is on.
+  layout: { textWidth: 0.50 },
+
+  // Per-text nudges, as fractions of the canvas. Set by dragging on the
+  // preview or by the sliders; they never shift the blocks around them.
+  offsets: {
+    display: { x: 0, y: 0 },
+    script:  { x: 0, y: 0 },
+    model:   { x: 0, y: 0 },
+    tagline: { x: 0, y: 0 }
   },
 
   brand: {
@@ -90,6 +130,9 @@ export const DEFAULTS = {
   },
 
   logo: {
+    variant: 'main',            // main | reversed — which uploaded file to use
+    knockout: false,            // paint the silhouette flat, for dark grounds
+    knockoutColor: '#ffffff',
     position: 'bottom-right',   // 9 anchors, or 'custom' once dragged
     size: 190,                  // rendered width in design px
     offsetX: 48,                // inset from the anchored edge
@@ -106,7 +149,9 @@ export const DEFAULTS = {
       borderWidth: 0,
       borderColor: '#0f2044',
       shadow: 0.18,
-      bleed: 'none'             // none | bottom | corner — let the wrapper run off-canvas
+      diameter: 0,              // 0 = size the badge from the art + padding
+      bleed: 'none',            // none | bottom | corner
+      bleedAmount: 0.3          // fraction of the badge hanging off the edge
     }
   },
 
@@ -117,34 +162,34 @@ export const DEFAULTS = {
     heading: 'Anton',
     body: 'Montserrat',
     lockHeading: false,
-    lockSecondary: true
+    lockSecondary: false
   },
 
   type: {
     // Oversized "JUST SOLD" headline
     display: {
       family: 'Anton', weight: 400, size: 128, tracking: -2,
-      lineHeight: 0.92, transform: 'uppercase', color: '#ffffff'
+      lineHeight: 0.92, transform: 'uppercase', color: '#ffffff', fit: true
     },
     // Handwritten "Just Sold!" headline
     script: {
       family: 'Great Vibes', weight: 400, size: 118, tracking: 0,
-      lineHeight: 1, transform: 'none', color: '#0f2044'
+      lineHeight: 1, transform: 'none', color: '#0f2044', fit: true
     },
     // The boat itself — year, make, model
     model: {
       family: 'Montserrat', weight: 800, size: 42, tracking: 1,
-      lineHeight: 1.2, transform: 'uppercase', color: '#ffffff'
+      lineHeight: 1.2, transform: 'uppercase', color: '#ffffff', fit: true
     },
     // Secondary line; defaults are the site's body face
     tagline: {
       family: 'Montserrat', weight: 500, size: 26, tracking: 3.5,
-      lineHeight: 1.45, transform: 'uppercase', color: '#c9d4e4'
+      lineHeight: 1.45, transform: 'uppercase', color: '#c9d4e4', fit: true
     },
     // Spec strip labels/values on the editorial layout
     spec: {
       family: 'Montserrat', weight: 700, size: 16, tracking: 1.6,
-      lineHeight: 1.5, transform: 'uppercase', color: '#0f2044'
+      lineHeight: 1.5, transform: 'uppercase', color: '#0f2044', fit: true
     }
   },
 
@@ -153,6 +198,27 @@ export const DEFAULTS = {
     color: '#2bb8b3',
     width: 120,
     thickness: 5
+  },
+
+  // Design 3 brackets the boat name between two rules of different lengths.
+  ruleB: {
+    show: false,
+    color: '#2bb8b3',
+    width: 270,
+    thickness: 3
+  },
+
+  // Design 4's geometric divider. x values are fractions of canvas width.
+  divider: {
+    style: 'diagonal',
+    topX: 0.405,
+    midX: 0.39,
+    bottomX: 0.468,
+    band: 0.022,
+    band2: 0.016,
+    ghost: 0.10,
+    color: '#12244d',
+    color2: '#c8d4e2'
   },
 
   text: {
@@ -187,24 +253,33 @@ const TRANSFORMS = [
   { value: 'capitalize', label: 'Title Case' }
 ];
 
+/** `role` keys the nudge offsets and the drag hit-testing. */
 function typeGroup(id, title, path, kind, opts = {}) {
+  const role = opts.role || path.split('.')[1];
   const f = [
     { key: `${path}.family`, label: 'Font family', type: 'font', options: fontOpts(kind), when: opts.familyWhen },
-    { key: `${path}.size`, label: 'Size', type: 'range', min: 8, max: opts.maxSize || 260, step: 1, unit: 'px' },
-    { key: `${path}.tracking`, label: 'Letter spacing', type: 'range', min: -8, max: 24, step: 0.5, unit: 'px' },
-    { key: `${path}.lineHeight`, label: 'Line height', type: 'range', min: 0.7, max: 2.2, step: 0.01, unit: '×' },
-    { key: `${path}.color`, label: 'Colour', type: 'color' }
+    { key: `${path}.size`, label: 'Size', type: 'range', box: true, min: 8, max: opts.maxSize || 400, step: 0.1, unit: 'px' },
+    { key: `${path}.tracking`, label: 'Letter spacing', type: 'range', box: true, min: -8, max: 24, step: 0.1, unit: 'px' },
+    { key: `${path}.lineHeight`, label: 'Line height', type: 'range', box: true, min: 0.7, max: 2.2, step: 0.01, unit: '×' },
+    { key: `${path}.color`, label: 'Colour', type: 'color' },
+    { key: `${path}.fit`, label: 'Shrink to fit column', type: 'checkbox' }
   ];
+  if (role !== 'spec') {
+    f.push(
+      { key: `offsets.${role}.x`, label: 'Nudge ↔', type: 'range', min: -0.6, max: 0.6, step: 0.002 },
+      { key: `offsets.${role}.y`, label: 'Nudge ↕', type: 'range', min: -0.6, max: 0.6, step: 0.002 }
+    );
+  }
   if (kind !== 'script') {
     f.splice(1, 0, { key: `${path}.weight`, label: 'Weight', type: 'select', options: WEIGHTS, numeric: true });
     f.push({ key: `${path}.transform`, label: 'Case', type: 'select', options: TRANSFORMS });
   }
-  return { id, title, show: opts.show, fields: f };
+  return { id, title, tab: 'text', collapsed: true, show: opts.show, fields: f };
 }
 
 export const SCHEMA = [
   {
-    id: 'canvas', title: 'Canvas & export',
+    id: 'canvas', tab: 'export', title: 'Canvas & export',
     fields: [
       { key: 'canvas.preset', label: 'Size preset', type: 'select',
         options: Object.entries(CANVAS_PRESETS).map(([value, p]) => ({ value, label: p.label })) },
@@ -217,21 +292,37 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'photo', title: 'Boat photo',
+    id: 'photo', tab: 'photo', title: 'Boat photo',
+    note: 'Move the photo with the sliders, or drag it directly on the preview.',
     fields: [
-      { key: 'photo.zoom', label: 'Zoom', type: 'range', min: 1, max: 2.5, step: 0.01, unit: '×' },
-      { key: 'photo.focusX', label: 'Focus ↔', type: 'range', min: 0, max: 1, step: 0.01 },
-      { key: 'photo.focusY', label: 'Focus ↕', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'photo.offsetX', label: 'Move photo ↔', type: 'range', min: -1, max: 1, step: 0.005 },
+      { key: 'photo.offsetY', label: 'Move photo ↕', type: 'range', min: -1, max: 1, step: 0.005 },
+      { key: 'photo.zoom', label: 'Zoom', type: 'range', min: 0.5, max: 4, step: 0.01, unit: '×' },
       { key: 'photo.brightness', label: 'Brightness', type: 'range', min: 0.4, max: 1.6, step: 0.01, unit: '×' },
       { key: 'photo.contrast', label: 'Contrast', type: 'range', min: 0.4, max: 1.8, step: 0.01, unit: '×' },
       { key: 'photo.saturate', label: 'Saturation', type: 'range', min: 0, max: 2, step: 0.01, unit: '×' },
       { key: 'photo.overlay', label: 'Tint colour', type: 'color' },
-      { key: 'photo.overlayOpacity', label: 'Tint strength', type: 'range', min: 0, max: 1, step: 0.01 },
-      { key: 'photo.scrimStrength', label: 'Headline scrim', type: 'range', min: 0, max: 1, step: 0.01 }
+      { key: 'photo.overlayOpacity', label: 'Tint strength', type: 'range', min: 0, max: 1, step: 0.01 }
     ]
   },
   {
-    id: 'brand', title: 'Brand colours',
+    id: 'fade', tab: 'photo', title: 'Colour fade', show: ['design-3', 'bold-left'],
+    note: 'The brand-coloured field the headline sits on. Hold keeps it solid before it starts dissolving into the photo.',
+    fields: [
+      { key: 'photo.fadeOpacity', label: 'Fade opacity', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'photo.fadeLength', label: 'Fade length', type: 'range', min: 0.1, max: 1, step: 0.005 },
+      { key: 'photo.fadeHold', label: 'Solid hold', type: 'range', min: 0, max: 0.9, step: 0.005 }
+    ]
+  },
+  {
+    id: 'layout', tab: 'text', title: 'Text column',
+    note: 'How wide text may run before "shrink to fit" kicks in. Widen this to let a headline get bigger.',
+    fields: [
+      { key: 'layout.textWidth', label: 'Column width', type: 'range', min: 0.2, max: 1, step: 0.005 }
+    ]
+  },
+  {
+    id: 'brand', tab: 'style', title: 'Brand colours',
     note: 'Extracted from your logo, or set by hand. Templates reference these slots.',
     fields: [
       { key: 'brand.primary', label: 'Primary', type: 'color' },
@@ -242,8 +333,15 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'logo', title: 'Logo placement & size',
+    id: 'logo', tab: 'logo', title: 'Logo placement & size',
     fields: [
+      { key: 'logo.variant', label: 'Which logo file', type: 'select', options: [
+        { value: 'main', label: 'Main logo' },
+        { value: 'reversed', label: 'Reversed / white version' }
+      ] },
+      { key: 'logo.knockout', label: 'Flatten to one colour', type: 'checkbox' },
+      { key: 'logo.knockoutColor', label: 'Flat colour', type: 'color',
+        when: s => s.logo.knockout },
       { key: 'logo.position', label: 'Anchor', type: 'select', options: [
         { value: 'top-left', label: 'Top left' }, { value: 'top-center', label: 'Top centre' }, { value: 'top-right', label: 'Top right' },
         { value: 'mid-left', label: 'Middle left' }, { value: 'mid-center', label: 'Centre' }, { value: 'mid-right', label: 'Middle right' },
@@ -259,7 +357,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'wrapper', title: 'Logo background wrapper',
+    id: 'wrapper', tab: 'logo', title: 'Logo background wrapper',
     fields: [
       { key: 'logo.wrapper.shape', label: 'Shape', type: 'select', options: [
         { value: 'none', label: 'None — logo only' }, { value: 'circle', label: 'Circle' },
@@ -267,12 +365,16 @@ export const SCHEMA = [
         { value: 'pill', label: 'Pill' }, { value: 'shield', label: 'Shield / badge' },
         { value: 'banner', label: 'Full-width banner' }
       ] },
+      { key: 'logo.wrapper.diameter', label: 'Badge size (0 = auto)', type: 'range', min: 0, max: 700, step: 1, unit: 'px' },
+      { key: 'logo.padding', label: 'Inner padding', type: 'range', min: 0, max: 160, step: 1, unit: 'px',
+        when: s => !s.logo.wrapper.diameter },
       { key: 'logo.wrapper.bleed', label: 'Bleed off edge', type: 'select', options: [
         { value: 'none', label: 'Keep fully on canvas' },
-        { value: 'bottom', label: 'Half off the bottom' },
+        { value: 'bottom', label: 'Off the bottom' },
         { value: 'corner', label: 'Into the nearest corner' }
       ] },
-      { key: 'logo.padding', label: 'Inner padding', type: 'range', min: 0, max: 120, step: 1, unit: 'px' },
+      { key: 'logo.wrapper.bleedAmount', label: 'Bleed amount', type: 'range', min: 0, max: 0.6, step: 0.005,
+        when: s => s.logo.wrapper.bleed !== 'none' },
       { key: 'logo.wrapper.fill', label: 'Fill colour', type: 'color' },
       { key: 'logo.wrapper.opacity', label: 'Fill opacity', type: 'range', min: 0, max: 1, step: 0.01 },
       { key: 'logo.wrapper.radius', label: 'Corner radius', type: 'range', min: 0, max: 120, step: 1, unit: 'px' },
@@ -282,16 +384,16 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'content', title: 'Text content',
+    id: 'content', tab: 'text', title: 'Text content',
     fields: [
-      { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['bold-left', 'editorial'] },
-      { key: 'text.script', label: 'Script headline', type: 'text', show: ['diagonal-split', 'full-bleed'] },
+      { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
+      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-4', 'design-5', 'diagonal-split', 'full-bleed'] },
       { key: 'text.model', label: 'Boat / model', type: 'textarea', rows: 2 },
-      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2 }
+      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
     ]
   },
   {
-    id: 'site-type', title: 'Website typography',
+    id: 'site-type', tab: 'text', title: 'Website typography',
     note: 'Set the two faces your site uses. With the locks on, secondary text and taglines follow the site body font automatically.',
     fields: [
       { key: 'siteType.heading', label: 'Site heading font', type: 'font', options: fontOpts('display') },
@@ -300,18 +402,84 @@ export const SCHEMA = [
       { key: 'siteType.lockSecondary', label: 'Lock secondary text & taglines to site body', type: 'checkbox' }
     ]
   },
-  typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 320, show: ['bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 320, show: ['diagonal-split', 'full-bleed'] }),
-  typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 140, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 100, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 60, show: ['editorial'], familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 500, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-4', 'design-5', 'diagonal-split', 'full-bleed'] }),
+  typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5'], familyWhen: st => !st.siteType.lockSecondary }),
   {
-    id: 'rule', title: 'Accent rule',
+    id: 'frame', tab: 'style', title: 'Angled photo frame', show: ['design-5'],
+    note: 'The photo is clipped to a polygon. Each slider moves one of its vertices, as a fraction of the canvas.',
+    fields: [
+      { key: 'frame.topLeft', label: 'Navy over left', type: 'range', min: 0, max: 0.6, step: 0.002 },
+      { key: 'frame.topRight', label: 'Navy over right', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'frame.riseFrom', label: 'Diagonal start', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.riseTo', label: 'Diagonal end', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.strip', label: 'Spec strip top', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'frame.stripFrom', label: 'Strip diagonal start', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.stripTo', label: 'Strip diagonal end', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'frame.specLeft', label: 'Specs left', type: 'range', min: 0, max: 0.9, step: 0.002 },
+      { key: 'frame.specRight', label: 'Specs right', type: 'range', min: 0.2, max: 1, step: 0.002 },
+      { key: 'frame.textRight', label: 'Text right edge', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'frame.scriptY', label: 'Script height', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'frame.modelY', label: 'Boat name height', type: 'range', min: 0, max: 0.9, step: 0.002 },
+      { key: 'frame.stripes', label: 'Accent diagonals', type: 'range', min: 0, max: 8, step: 1 },
+      { key: 'frame.stripeOpacity', label: 'Diagonal strength', type: 'range', min: 0, max: 0.6, step: 0.005 }
+    ]
+  },
+  {
+    id: 'panels', tab: 'style', title: 'Solid panels', show: ['full-bleed'],
+    note: 'The tag block and the footer bar are plain rectangles with their own geometry — they are not sized to the text inside them.',
+    fields: [
+      { key: 'panels.tagX', label: 'Tag left', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'panels.tagY', label: 'Tag top', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'panels.tagW', label: 'Tag width', type: 'range', min: 0.05, max: 1, step: 0.002 },
+      { key: 'panels.tagH', label: 'Tag height', type: 'range', min: 0.05, max: 1, step: 0.002 },
+      { key: 'panels.tagFill', label: 'Tag colour', type: 'color' },
+      { key: 'panels.tagOpacity', label: 'Tag opacity', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'panels.barH', label: 'Footer height', type: 'range', min: 0.05, max: 0.5, step: 0.002 },
+      { key: 'panels.barFill', label: 'Footer colour', type: 'color' },
+      { key: 'panels.barOpacity', label: 'Footer opacity', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'panels.dividerX', label: 'Divider position', type: 'range', min: 0.15, max: 0.9, step: 0.002 },
+      { key: 'panels.fade', label: 'Fade above footer', type: 'range', min: 0, max: 0.4, step: 0.005 }
+    ]
+  },
+  {
+    id: 'rule', tab: 'style', title: 'Accent rule',
     fields: [
       { key: 'rule.show', label: 'Show accent rule', type: 'checkbox' },
       { key: 'rule.color', label: 'Colour', type: 'color' },
       { key: 'rule.width', label: 'Length', type: 'range', min: 20, max: 400, step: 1, unit: 'px' },
       { key: 'rule.thickness', label: 'Thickness', type: 'range', min: 1, max: 24, step: 0.5, unit: 'px' }
+    ]
+  },
+  {
+    id: 'ruleB', tab: 'style', title: 'Second accent rule', show: ['design-3'],
+    note: 'The shorter rule sits above the boat name, this one below it.',
+    fields: [
+      { key: 'ruleB.show', label: 'Show second rule', type: 'checkbox' },
+      { key: 'ruleB.color', label: 'Colour', type: 'color' },
+      { key: 'ruleB.width', label: 'Length', type: 'range', min: 20, max: 500, step: 1, unit: 'px' },
+      { key: 'ruleB.thickness', label: 'Thickness', type: 'range', min: 1, max: 24, step: 0.5, unit: 'px' }
+    ]
+  },
+  {
+    id: 'divider', tab: 'style', title: 'Geometric divider', show: ['design-4'],
+    note: 'Where the photo starts, as a fraction of the width — top edge and bottom edge separately, so the angle is yours to set.',
+    fields: [
+      { key: 'divider.style', label: 'Shape', type: 'select', options: [
+        { value: 'diagonal', label: 'Straight diagonal' },
+        { value: 'chevron', label: 'Chevron (points left at centre)' }
+      ] },
+      { key: 'divider.topX', label: 'Top edge', type: 'range', min: 0.1, max: 0.9, step: 0.002 },
+      { key: 'divider.bottomX', label: 'Bottom edge', type: 'range', min: 0.1, max: 0.9, step: 0.002 },
+      { key: 'divider.midX', label: 'Chevron point', type: 'range', min: 0.1, max: 0.9, step: 0.002,
+        when: s => s.divider.style === 'chevron' },
+      { key: 'divider.color', label: 'Band colour', type: 'color' },
+      { key: 'divider.band', label: 'Band width', type: 'range', min: 0, max: 0.12, step: 0.001 },
+      { key: 'divider.color2', label: 'Outer band colour', type: 'color' },
+      { key: 'divider.band2', label: 'Outer band width', type: 'range', min: 0, max: 0.12, step: 0.001 },
+      { key: 'divider.ghost', label: 'Photo wash on panel', type: 'range', min: 0, max: 0.5, step: 0.01 }
     ]
   }
 ];

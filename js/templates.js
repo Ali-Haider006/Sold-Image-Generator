@@ -16,11 +16,40 @@
      displayFont — the headline face the layout was drawn around
 ------------------------------------------------------------------- */
 
-import { unit, drawBlock, photo, scrim, rgba, line, chevronPath } from './draw.js';
-import { drawLogo, logoGeometry } from './logo.js';
+import {
+  unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath
+} from './draw.js';
+import { drawLogo, logoGeometry, pickLogo } from './logo.js';
 
 /** Portrait and square canvases stack their regions instead of splitting. */
 const isTall = (W, H) => H / W > 1.05;
+
+/* ---------- draggable text ----------
+   The editor needs to know where each text block landed so a pointer can
+   grab it. Boxes are only collected when the caller asks, so gallery
+   thumbnails and exports do not disturb the editor's hit map.            */
+
+let HITS = [];
+let TRACK = false;
+export const textHitBoxes = () => HITS;
+
+/**
+ * Draw one text block with its per-text nudge applied.
+ *
+ * The returned geometry is deliberately the UN-nudged layout position: a
+ * nudge moves only that block, it never pushes the blocks stacked after it.
+ */
+function block(ctx, S, role, text, spec, opts, W, H) {
+  const o = (S.offsets && S.offsets[role]) || { x: 0, y: 0 };
+  const dx = o.x * W, dy = o.y * H;
+  const box = drawBlock(ctx, text, spec, {
+    ...opts, x: opts.x + dx, y: (opts.y || 0) + dy
+  });
+  if (TRACK && !opts.measureOnly && box.width > 0) {
+    HITS.push({ role, x: box.x, y: box.y, w: box.width, h: box.height });
+  }
+  return { ...box, x: box.x - dx, y: box.y - dy, bottom: box.bottom - dy };
+}
 
 const placeholder = (ctx, S, x, y, w, h) => {
   ctx.fillStyle = rgba(S.brand.primary, 0.3);
@@ -54,7 +83,9 @@ function textStack(ctx, S, items, opts) {
       cy += t + (it.gap || 0);
     } else {
       if (!String(it.text || '').trim()) continue;
-      const b = drawBlock(ctx, it.text, it.spec, { x, y: cy, maxWidth, scale, align, measureOnly });
+      const b = it.role && !measureOnly
+        ? block(ctx, S, it.role, it.text, it.spec, { x, y: cy, maxWidth, scale, align }, opts.W, opts.H)
+        : drawBlock(ctx, it.text, it.spec, { x, y: cy, maxWidth, scale, align, measureOnly });
       cy += b.height + (it.gap || 0);
     }
   }
@@ -88,17 +119,17 @@ function boldLeft(ctx, S, A, W, H) {
 
   if (tall) {
     // Stacked: the type sits along the bottom under a rising scrim.
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'bottom', 0.68);
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength * 0.35, 'left', 0.55);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.fadeOpacity, 'bottom', 0.68);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.fadeOpacity * 0.35, 'left', 0.55);
     const x = W * 0.075;
     const { height } = textStack(ctx, S, items, { x, maxWidth: W * 0.85, scale: k, measureOnly: true });
-    textStack(ctx, S, items, { x, y: H - H * 0.085 - height, maxWidth: W * 0.85, scale: k });
+    textStack(ctx, S, items, { x, y: H - H * 0.085 - height, maxWidth: W * 0.85, scale: k, W, H });
   } else {
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'left', 0.70);
-    textStack(ctx, S, items, { x: W * 0.062, y: H * 0.10, maxWidth: W * 0.44, scale: k });
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.fadeOpacity, 'left', 0.70);
+    textStack(ctx, S, items, { x: W * 0.062, y: H * 0.10, maxWidth: W * 0.44, scale: k, W, H });
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 boldLeft.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'corner' } };
 boldLeft.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
@@ -163,7 +194,7 @@ function diagonalSplit(ctx, S, A, W, H) {
       { x: W * 0.065, maxWidth: split - notch * 0.5 - W * 0.12, scale: k }, H / 2);
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 diagonalSplit.defaults = { position: 'top-right', wrapper: { shape: 'shield', bleed: 'none' } };
 diagonalSplit.surfaces = { display: 'light', script: 'light', model: 'light', tagline: 'light', spec: 'light' };
@@ -172,64 +203,83 @@ diagonalSplit.displayFont = 'Montserrat';
 /* ================================================================
    3. FULL BLEED — corner tag over the photo, footer bar for the details
    ================================================================ */
+/* ================================================================
+   FULL BLEED — photo edge to edge, a solid tag panel, a solid footer bar
+   ================================================================
+   Both panels are plain rectangles with their own geometry, taken from the
+   reference at 1200x800: the tag is 31% x 36.3% flush into the top-left
+   corner, the bar is 18.1% of the height across the full width. Neither is
+   sized to its text and neither is faded — `panels.fade` is 0 by default, so
+   the bar meets the photo on a hard edge.
+   ================================================================ */
 function fullBleed(ctx, S, A, W, H) {
   const k = unit(W, H);
   const tall = isTall(W, H);
+  const P = S.panels;
 
   if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
   else placeholder(ctx, S, 0, 0, W, H);
 
-  const barH = H * (tall ? 0.20 : 0.185);
+  const barH = H * (tall ? P.barH * 1.45 : P.barH);
   const barY = H - barH;
 
-  scrim(ctx, 0, barY - H * 0.16, W, H * 0.16, S.brand.dark, S.photo.scrimStrength * 0.7, 'bottom', 1);
-  ctx.fillStyle = S.brand.dark;
-  ctx.fillRect(0, barY, W, barH);
-
-  // Top-left tag, sized to its own text.
-  const pad = W * 0.035;
-  const tag = drawBlock(ctx, S.text.script, S.type.script,
-    { scale: k, maxWidth: W * (tall ? 0.72 : 0.42), measureOnly: true });
-  ctx.fillStyle = rgba(S.brand.dark, 0.94);
-  ctx.fillRect(0, 0, tag.width + pad * 2, tag.height + pad * 1.5);
-  drawBlock(ctx, S.text.script, S.type.script, {
-    x: pad, y: (tag.height + pad * 1.5) / 2, baseline: 'middle',
-    scale: k, maxWidth: W * (tall ? 0.72 : 0.42)
-  });
-
-  // The badge sits on top of the bar, so the footer text stops short of it.
-  const fx = W * 0.055;
-  const mid = barY + barH / 2;
-  const geo = A.logo ? logoGeometry(S, W, H, A.logo) : null;
-  const overlapsBar = geo && geo.wrapper.y + geo.wrapper.h > barY && geo.wrapper.x + geo.wrapper.w > W * 0.4;
-  const guard = overlapsBar ? geo.wrapper.x - W * 0.03 : W * 0.95;
-
-  if (tall) {
-    // Too narrow for a side-by-side footer — stack the two lines instead.
-    centredStack(ctx, S, [
-      { text: S.text.model, spec: S.type.model, gap: barH * 0.12 },
-      { text: S.text.tagline, spec: S.type.tagline }
-    ], { x: fx, maxWidth: Math.max(W * 0.2, guard - fx), scale: k }, mid);
-  } else {
-    const model = drawBlock(ctx, S.text.model, S.type.model, {
-      x: fx, y: mid, baseline: 'middle', scale: k, maxWidth: Math.min(W * 0.4, guard - fx)
-    });
-    const dx = Math.max(model.x + model.width + W * 0.05, W * 0.40);
-    const tagX = dx + W * 0.04;
-    const tagMaxW = guard - tagX;
-
-    if (tagMaxW > W * 0.08) {
-      if (S.rule.show) {
-        ctx.fillStyle = rgba(S.brand.light, 0.45);
-        ctx.fillRect(dx, mid - barH * 0.22, Math.max(1, S.rule.thickness * k * 0.4), barH * 0.44);
-      }
-      drawBlock(ctx, S.text.tagline, S.type.tagline, {
-        x: tagX, y: mid, baseline: 'middle', scale: k, maxWidth: tagMaxW
-      });
-    }
+  // Optional lift above the bar. The reference has none, so this is off by
+  // default and the rectangle keeps a clean edge.
+  if (P.fade > 0) {
+    scrim(ctx, 0, barY - H * P.fade, W, H * P.fade,
+      P.barFill, S.photo.fadeOpacity, 'bottom', 1);
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  ctx.fillStyle = rgba(P.barFill, P.barOpacity);
+  ctx.fillRect(0, barY, W, barH);
+
+  // Tag panel: a designed rectangle, not a box wrapped around the words.
+  const tw = W * P.tagW;
+  const th = H * (tall ? P.tagH * 0.8 : P.tagH);
+  const tx = W * P.tagX;
+  const ty = H * P.tagY;
+  ctx.fillStyle = rgba(P.tagFill, P.tagOpacity);
+  ctx.fillRect(tx, ty, tw, th);
+
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: tx + tw / 2, y: ty + th / 2, align: 'center', baseline: 'middle',
+    maxWidth: tw * 0.84, scale: k
+  }, W, H);
+
+  const fx = W * 0.046;
+  const mid = barY + barH / 2;
+  const geo = pickLogo(S, A) ? logoGeometry(S, W, H, pickLogo(S, A)) : null;
+  // The badge overlaps the bar, so the footer text stops short of it.
+  const guard = geo && geo.wrapper.x > W * 0.5
+    ? geo.wrapper.x - W * 0.025
+    : W * 0.96;
+
+  if (tall) {
+    centredStack(ctx, S, [
+      { role: 'model', text: S.text.model, spec: S.type.model, gap: barH * 0.1 },
+      { role: 'tagline', text: S.text.tagline, spec: S.type.tagline }
+    ], { x: fx, maxWidth: Math.max(W * 0.2, guard - fx), scale: k, W, H }, mid);
+  } else {
+    const dx = W * P.dividerX;
+
+    block(ctx, S, 'model', S.text.model, S.type.model, {
+      x: fx, y: mid, baseline: 'middle', scale: k, maxWidth: dx - fx - W * 0.03
+    }, W, H);
+
+    if (S.rule.show) {
+      ctx.fillStyle = rgba(S.rule.color, 0.5);
+      ctx.fillRect(dx, mid - barH * 0.34,
+        Math.max(1, S.rule.thickness * k), barH * 0.68);
+    }
+
+    const tagX = dx + W * 0.038;
+    block(ctx, S, 'tagline', S.text.tagline, S.type.tagline, {
+      x: tagX, y: mid, baseline: 'middle', scale: k,
+      maxWidth: Math.max(W * 0.12, guard - tagX)
+    }, W, H);
+  }
+
+  drawLogo(ctx, S, W, H, A);
 }
 fullBleed.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'none' } };
 fullBleed.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
@@ -307,13 +357,290 @@ function editorial(ctx, S, A, W, H) {
     centredStack(ctx, S, head, { x, maxWidth: maxW, scale: k }, H / 2);
   }
 
-  drawLogo(ctx, S, W, H, A.logo);
+  drawLogo(ctx, S, W, H, A);
 }
 editorial.defaults = { position: 'top-right', wrapper: { shape: 'shield', bleed: 'none' } };
 editorial.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
 editorial.displayFont = 'Playfair Display';
 
+
+/**
+ * Four label/value columns with hairline dividers.
+ *
+ * Shared by the editorial layout, which sets it on white, and design 5,
+ * which sets it on the navy ground — hence the explicit colours.
+ */
+function specStrip(ctx, S, k, { x, y, w, h, labelColor, valueColor, dividerColor }) {
+  const specs = (S.text.specs || []).filter(sp => sp.label || sp.value);
+  if (!specs.length) return;
+
+  const cellW = w / specs.length;
+  const labelSpec = { ...S.type.spec, size: S.type.spec.size, color: labelColor };
+  const valueSpec = {
+    ...S.type.spec, weight: 400, transform: 'none',
+    tracking: Math.min(S.type.spec.tracking, 0.4),
+    size: S.type.spec.size * 1.02, color: valueColor
+  };
+
+  specs.forEach((sp, i) => {
+    const cx = x + cellW * i;
+    if (i > 0) {
+      ctx.fillStyle = dividerColor;
+      ctx.fillRect(cx, y + h * 0.26, 1, h * 0.48);
+    }
+    drawBlock(ctx, sp.label, labelSpec, {
+      x: cx + cellW / 2, y: y + h * 0.36, baseline: 'middle',
+      align: 'center', scale: k, maxWidth: cellW * 0.88
+    });
+    drawBlock(ctx, sp.value, valueSpec, {
+      x: cx + cellW / 2, y: y + h * 0.68, baseline: 'middle',
+      align: 'center', scale: k, maxWidth: cellW * 0.88
+    });
+  });
+}
+
+/* ================================================================
+   DESIGN 5 — signature script on navy, photo cut to an angled frame
+   ================================================================
+   The photo is clipped to a polygon, not a rectangle: a shallow navy band
+   across the top left, a diagonal riser, then a much deeper navy field on
+   the right that carries the script, the boat name and the badge. A second
+   diagonal cuts the spec strip in at the bottom. Every vertex is a setting,
+   so the angles can be dialled onto the reference.
+   ================================================================ */
+function framePath(ctx, W, H, F, tall) {
+  ctx.beginPath();
+  if (tall) {
+    // Stacked: a straight band top and bottom, no diagonals to lose.
+    ctx.moveTo(0, H * F.topRight);
+    ctx.lineTo(W, H * F.topRight);
+    ctx.lineTo(W, H * F.strip);
+    ctx.lineTo(0, H * F.strip);
+  } else {
+    ctx.moveTo(0, H * F.topLeft);
+    ctx.lineTo(W * F.riseFrom, H * F.topLeft);
+    ctx.lineTo(W * F.riseTo, H * F.topRight);
+    ctx.lineTo(W, H * F.topRight);
+    ctx.lineTo(W, H * F.strip);
+    ctx.lineTo(W * F.stripFrom, H * F.strip);
+    ctx.lineTo(W * F.stripTo, H);
+    ctx.lineTo(0, H);
+  }
+  ctx.closePath();
+}
+
+function design5(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+  const F = S.frame;
+
+  ctx.fillStyle = S.brand.dark;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative diagonals, drawn across the whole canvas and then covered by
+  // the photo — so they survive only in the navy, which is where they belong.
+  if (F.stripes > 0 && F.stripeOpacity > 0) {
+    ctx.save();
+    ctx.strokeStyle = rgba(S.brand.light, F.stripeOpacity);
+    ctx.lineWidth = Math.max(1, W * 0.004);
+    const lean = (F.riseTo - F.riseFrom) * W;
+    const gap = W * 0.055;
+    for (let i = 0; i < F.stripes; i++) {
+      const off = W * 0.80 + gap * i;
+      ctx.beginPath();
+      ctx.moveTo(off, H);
+      ctx.lineTo(off + lean, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  framePath(ctx, W, H, F, tall);
+  ctx.clip();
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+  ctx.restore();
+
+  // Script and boat name share a right edge; the name hangs below the
+  // script's descender rather than at a fixed offset, so a long boat name
+  // never collides with a long-tailed signature face.
+  const rx = W * F.textRight;
+  const script = block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: rx, y: H * F.scriptY, align: 'right', baseline: 'middle',
+    maxWidth: W * (tall ? 0.86 : 0.64), scale: k
+  }, W, H);
+
+  const modelY = Math.max(H * F.modelY, script.bottom + H * 0.018);
+  block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: rx, y: modelY, align: 'right', maxWidth: W * (tall ? 0.86 : 0.52), scale: k
+  }, W, H);
+
+  drawLogo(ctx, S, W, H, A);
+
+  const sy = H * F.strip;
+  specStrip(ctx, S, k, {
+    x: W * (tall ? 0.05 : F.specLeft), y: sy,
+    w: W * (tall ? 0.90 : F.specRight - F.specLeft), h: H - sy,
+    labelColor: S.type.spec.color,
+    valueColor: rgba(S.type.spec.color, 0.72),
+    dividerColor: rgba(S.brand.light, 0.26)
+  });
+}
+design5.defaults = { position: 'custom', wrapper: { shape: 'none', bleed: 'none' } };
+design5.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'dark' };
+design5.displayFont = 'Montserrat';
+
+/* ================================================================
+   DESIGN 3 — "JUST SOLD" over a brand-coloured fade
+   ================================================================
+   Built to the supplied spec at the 1200x800 reference:
+     headline  Intro Rust 150
+     boat name Montserrat 33.3, centred on the headline's own width
+     tagline   Montserrat 31.7
+   The fade colour is the logo's major extracted colour, and the badge sits
+   in the bottom-right corner on a white circle.
+   ================================================================ */
+function design3(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+
+  ctx.fillStyle = S.brand.dark;
+  ctx.fillRect(0, 0, W, H);
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+
+  // A solid colour field that holds, then dissolves into the photograph —
+  // not a vignette. `hold` is what keeps the left third fully opaque.
+  const P = S.photo;
+  if (tall) {
+    scrim(ctx, 0, 0, W, H, S.brand.dark, P.fadeOpacity, 'bottom', P.fadeLength, P.fadeHold);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, P.fadeOpacity * 0.4, 'left', 0.5, 0.1);
+  } else {
+    scrim(ctx, 0, 0, W, H, S.brand.dark, P.fadeOpacity, 'left', P.fadeLength, P.fadeHold);
+  }
+
+  const x = W * 0.075;
+  const colMax = W * (tall ? Math.max(S.layout.textWidth, 0.85) : S.layout.textWidth);
+  let y = H * (tall ? 0.30 : 0.085);
+
+  const head = block(ctx, S, 'display', S.text.kicker, S.type.display,
+    { x, y, maxWidth: colMax, scale: k }, W, H);
+
+  // The rest of the stack centres on the headline's own width, which is what
+  // gives this layout its off-axis look.
+  const cx = head.x + head.width / 2;
+  y = head.bottom + H * 0.075;
+
+  if (S.rule.show) {
+    line(ctx, x, y, S.rule.width * k, S.rule.thickness * k, S.rule.color);
+    y += S.rule.thickness * k + H * 0.045;
+  }
+
+  const model = block(ctx, S, 'model', S.text.model, S.type.model,
+    { x: cx, y, align: 'center', maxWidth: colMax, scale: k }, W, H);
+  y = model.bottom + H * 0.045;
+
+  if (S.ruleB.show) {
+    const wB = S.ruleB.width * k;
+    line(ctx, model.x + model.width - wB, y, wB, S.ruleB.thickness * k, S.ruleB.color);
+    y += S.ruleB.thickness * k + H * 0.06;
+  }
+
+  block(ctx, S, 'tagline', S.text.tagline, S.type.tagline,
+    { x: cx, y, align: 'center', maxWidth: colMax, scale: k }, W, H);
+
+  drawLogo(ctx, S, W, H, A);
+}
+design3.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'none' } };
+design3.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
+design3.displayFont = 'Intro Rust';
+
+/* ================================================================
+   DESIGN 4 — brush script on a light panel, diagonal geometric divider
+   ================================================================
+   Spec at the 1200x800 reference:
+     script    Breathing 92.2, colour from the logo
+     boat name Montserrat 30.3, colour from the logo
+     tagline   Montserrat 22.7, grey
+   The divider angle, band widths and colours are all settings, so the
+   geometry can be dialled onto the reference exactly.
+   ================================================================ */
+function design4(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+  const d = S.divider;
+
+  ctx.fillStyle = S.brand.light;
+  ctx.fillRect(0, 0, W, H);
+
+  // The light panel carries a very faint wash of the same photo.
+  if (A.boat && d.ghost > 0) {
+    ctx.save();
+    ctx.globalAlpha = d.ghost;
+    photo(ctx, A.boat, S.photo, 0, 0, W, H);
+    ctx.restore();
+  }
+
+  const geom = tall
+    ? { ...d, topX: d.topX, bottomX: d.bottomX }
+    : d;
+
+  if (tall) {
+    // Stacked: the divider becomes a horizontal band above the photo.
+    const splitY = H * 0.46;
+    const slant = H * 0.035;
+    const band = (i) => {
+      ctx.beginPath();
+      ctx.moveTo(0, splitY + slant + i);
+      ctx.lineTo(W, splitY - slant + i);
+      ctx.lineTo(W, H); ctx.lineTo(0, H);
+      ctx.closePath();
+    };
+    ctx.fillStyle = d.color2; band(0); ctx.fill();
+    ctx.fillStyle = d.color; band(H * d.band2); ctx.fill();
+    ctx.save(); band(H * (d.band2 + d.band)); ctx.clip();
+    if (A.boat) photo(ctx, A.boat, S.photo, 0, splitY, W, H - splitY);
+    else placeholder(ctx, S, 0, splitY, W, H - splitY);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = d.color2;
+    dividerPath(ctx, W, H, geom, -(d.band + d.band2)); ctx.fill();
+    ctx.fillStyle = d.color;
+    dividerPath(ctx, W, H, geom, -d.band); ctx.fill();
+
+    ctx.save();
+    dividerPath(ctx, W, H, geom, 0);
+    ctx.clip();
+    if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+    else placeholder(ctx, S, W * geom.topX, 0, W * (1 - geom.topX), H);
+    ctx.restore();
+  }
+
+  const x = W * 0.055;
+  const maxW = tall
+    ? W * 0.89
+    : W * Math.min(geom.topX, geom.bottomX) - x - W * 0.03;
+
+  const items = [
+    { role: 'script', text: S.text.script, spec: S.type.script, gap: H * 0.11 },
+    { role: 'model', text: S.text.model, spec: S.type.model, gap: H * 0.055 },
+    { rule: true, gap: H * 0.05 },
+    { role: 'tagline', text: S.text.tagline, spec: S.type.tagline }
+  ];
+  centredStack(ctx, S, items, { x, maxWidth: maxW, scale: k, W, H },
+    tall ? H * 0.23 : H * 0.5);
+
+  drawLogo(ctx, S, W, H, A);
+}
+design4.defaults = { position: 'top-right', wrapper: { shape: 'circle', bleed: 'none' } };
+design4.surfaces = { display: 'light', script: 'light', model: 'light', tagline: 'light', spec: 'light' };
+design4.displayFont = 'Montserrat';
+
 export const RENDERERS = {
+  'design-3': design3,
+  'design-5': design5,
+  'design-4': design4,
   'bold-left': boldLeft,
   'diagonal-split': diagonalSplit,
   'full-bleed': fullBleed,
@@ -326,11 +653,14 @@ export const RENDERERS = {
  * @param S    settings
  * @param A    {boat, logo} loaded HTMLImageElements (either may be null)
  */
-export function renderDesign(ctx, S, A, W, H) {
+export function renderDesign(ctx, S, A, W, H, opts = {}) {
+  TRACK = !!opts.track;
+  if (TRACK) HITS = [];
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   (RENDERERS[S.template] || boldLeft)(ctx, S, A, W, H);
   ctx.restore();
+  TRACK = false;
 }
