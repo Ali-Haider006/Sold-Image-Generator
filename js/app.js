@@ -13,7 +13,7 @@
 import { DEFAULTS, CANVAS_PRESETS, clone, merge } from './settings.js';
 import { DESIGNS, DESIGN_SLOTS, byId, pendingSlots } from './designs.js';
 import { Panel, buildSpecEditor } from './ui.js';
-import { renderDesign, RENDERERS } from './templates.js';
+import { renderDesign, RENDERERS, textHitBoxes } from './templates.js';
 import { logoGeometry } from './logo.js';
 import { extractPalette, readableOn } from './palette.js';
 import {
@@ -24,7 +24,7 @@ import {
 const $ = sel => document.querySelector(sel);
 const LS = {
   logo: 'sig.logo.v2', model: 'sig.model.v2',
-  settings: 'sig.designs.v2', fonts: 'sig.fonts.v2'
+  settings: 'sig.designs.v3', fonts: 'sig.fonts.v2'
 };
 
 const loadJSON = key => {
@@ -392,7 +392,7 @@ function render() {
   }
   canvas.style.aspectRatio = `${W} / ${H}`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  renderDesign(ctx, s, state.assets, W, H);
+  renderDesign(ctx, s, state.assets, W, H, { track: true });
 
   $('#dims-readout').textContent =
     `${W} × ${H} px · export ${W * s.canvas.exportScale} × ${H * s.canvas.exportScale}`;
@@ -414,21 +414,34 @@ function toDesign(e) {
   };
 }
 const inRect = (p, r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
-const clamp01 = v => Math.max(0, Math.min(1, v));
 
 let drag = null;
+
+/** Topmost text block under the pointer, if any. */
+function textAt(p) {
+  const boxes = textHitBoxes();
+  for (let i = boxes.length - 1; i >= 0; i--) {
+    const b = boxes[i];
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return b;
+  }
+  return null;
+}
 
 canvas.addEventListener('pointerdown', e => {
   const [W, H] = dims();
   const p = toDesign(e);
   const geo = state.assets.logo ? logoGeometry(S(), W, H, state.assets.logo) : null;
+  const hit = textAt(p);
 
-  if (geo && inRect(p, geo.wrapper)) {
+  if (hit) {
+    // Text sits above the badge: it is usually the smaller target.
+    drag = { mode: 'text', role: hit.role, lastX: p.x, lastY: p.y };
+  } else if (geo && inRect(p, geo.wrapper)) {
     drag = { mode: 'logo', grabX: p.x - geo.wrapper.cx, grabY: p.y - geo.wrapper.cy };
     S().logo.position = 'custom';
     state.logoCustomized[state.active] = true;
   } else {
-    drag = { mode: 'focus', startX: p.x, startY: p.y, fx: S().photo.focusX, fy: S().photo.focusY };
+    drag = { mode: 'photo', lastX: p.x, lastY: p.y };
   }
   canvas.setPointerCapture(e.pointerId);
   canvas.classList.add('dragging');
@@ -436,18 +449,32 @@ canvas.addEventListener('pointerdown', e => {
 
 canvas.addEventListener('pointermove', e => {
   const [W, H] = dims();
+  const p = toDesign(e);
+
   if (!drag) {
     const geo = state.assets.logo ? logoGeometry(S(), W, H, state.assets.logo) : null;
-    canvas.style.cursor = geo && inRect(toDesign(e), geo.wrapper) ? 'grab' : 'move';
+    canvas.style.cursor = textAt(p) ? 'grab'
+      : geo && inRect(p, geo.wrapper) ? 'grab' : 'move';
     return;
   }
-  const p = toDesign(e);
+
   if (drag.mode === 'logo') {
     S().logo.customX = (p.x - drag.grabX) / W;
     S().logo.customY = (p.y - drag.grabY) / H;
   } else {
-    S().photo.focusX = clamp01(drag.fx + (p.x - drag.startX) / W);
-    S().photo.focusY = clamp01(drag.fy + (p.y - drag.startY) / H);
+    // Text nudges and the photo pan are both relative, so a drag that starts
+    // on one element keeps tracking the pointer exactly.
+    const dx = (p.x - drag.lastX) / W;
+    const dy = (p.y - drag.lastY) / H;
+    drag.lastX = p.x; drag.lastY = p.y;
+
+    if (drag.mode === 'text') {
+      const o = S().offsets[drag.role];
+      o.x += dx; o.y += dy;
+    } else {
+      S().photo.offsetX += dx;
+      S().photo.offsetY += dy;
+    }
   }
   panel.refresh();
   scheduleRender();

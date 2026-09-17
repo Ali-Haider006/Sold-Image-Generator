@@ -24,6 +24,33 @@ import { drawLogo, logoGeometry } from './logo.js';
 /** Portrait and square canvases stack their regions instead of splitting. */
 const isTall = (W, H) => H / W > 1.05;
 
+/* ---------- draggable text ----------
+   The editor needs to know where each text block landed so a pointer can
+   grab it. Boxes are only collected when the caller asks, so gallery
+   thumbnails and exports do not disturb the editor's hit map.            */
+
+let HITS = [];
+let TRACK = false;
+export const textHitBoxes = () => HITS;
+
+/**
+ * Draw one text block with its per-text nudge applied.
+ *
+ * The returned geometry is deliberately the UN-nudged layout position: a
+ * nudge moves only that block, it never pushes the blocks stacked after it.
+ */
+function block(ctx, S, role, text, spec, opts, W, H) {
+  const o = (S.offsets && S.offsets[role]) || { x: 0, y: 0 };
+  const dx = o.x * W, dy = o.y * H;
+  const box = drawBlock(ctx, text, spec, {
+    ...opts, x: opts.x + dx, y: (opts.y || 0) + dy
+  });
+  if (TRACK && !opts.measureOnly && box.width > 0) {
+    HITS.push({ role, x: box.x, y: box.y, w: box.width, h: box.height });
+  }
+  return { ...box, x: box.x - dx, y: box.y - dy, bottom: box.bottom - dy };
+}
+
 const placeholder = (ctx, S, x, y, w, h) => {
   ctx.fillStyle = rgba(S.brand.primary, 0.3);
   ctx.fillRect(x, y, w, h);
@@ -56,7 +83,9 @@ function textStack(ctx, S, items, opts) {
       cy += t + (it.gap || 0);
     } else {
       if (!String(it.text || '').trim()) continue;
-      const b = drawBlock(ctx, it.text, it.spec, { x, y: cy, maxWidth, scale, align, measureOnly });
+      const b = it.role && !measureOnly
+        ? block(ctx, S, it.role, it.text, it.spec, { x, y: cy, maxWidth, scale, align }, opts.W, opts.H)
+        : drawBlock(ctx, it.text, it.spec, { x, y: cy, maxWidth, scale, align, measureOnly });
       cy += b.height + (it.gap || 0);
     }
   }
@@ -90,14 +119,14 @@ function boldLeft(ctx, S, A, W, H) {
 
   if (tall) {
     // Stacked: the type sits along the bottom under a rising scrim.
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'bottom', 0.68);
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength * 0.35, 'left', 0.55);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.fadeOpacity, 'bottom', 0.68);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.fadeOpacity * 0.35, 'left', 0.55);
     const x = W * 0.075;
     const { height } = textStack(ctx, S, items, { x, maxWidth: W * 0.85, scale: k, measureOnly: true });
-    textStack(ctx, S, items, { x, y: H - H * 0.085 - height, maxWidth: W * 0.85, scale: k });
+    textStack(ctx, S, items, { x, y: H - H * 0.085 - height, maxWidth: W * 0.85, scale: k, W, H });
   } else {
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'left', 0.70);
-    textStack(ctx, S, items, { x: W * 0.062, y: H * 0.10, maxWidth: W * 0.44, scale: k });
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.fadeOpacity, 'left', 0.70);
+    textStack(ctx, S, items, { x: W * 0.062, y: H * 0.10, maxWidth: W * 0.44, scale: k, W, H });
   }
 
   drawLogo(ctx, S, W, H, A.logo);
@@ -184,7 +213,7 @@ function fullBleed(ctx, S, A, W, H) {
   const barH = H * (tall ? 0.20 : 0.185);
   const barY = H - barH;
 
-  scrim(ctx, 0, barY - H * 0.16, W, H * 0.16, S.brand.dark, S.photo.scrimStrength * 0.7, 'bottom', 1);
+  scrim(ctx, 0, barY - H * 0.16, W, H * 0.16, S.brand.dark, S.photo.fadeOpacity * 0.7, 'bottom', 1);
   ctx.fillStyle = S.brand.dark;
   ctx.fillRect(0, barY, W, barH);
 
@@ -337,19 +366,20 @@ function design3(ctx, S, A, W, H) {
 
   // A solid colour field that holds, then dissolves into the photograph —
   // not a vignette. `hold` is what keeps the left third fully opaque.
+  const P = S.photo;
   if (tall) {
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'bottom', 0.72, 0.30);
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength * 0.4, 'left', 0.5, 0.1);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, P.fadeOpacity, 'bottom', P.fadeLength, P.fadeHold);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, P.fadeOpacity * 0.4, 'left', 0.5, 0.1);
   } else {
-    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'left', 0.66, 0.38);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, P.fadeOpacity, 'left', P.fadeLength, P.fadeHold);
   }
 
-  const x = W * (tall ? 0.075 : 0.075);
-  const colMax = W * (tall ? 0.85 : 0.44);
+  const x = W * 0.075;
+  const colMax = W * (tall ? Math.max(S.layout.textWidth, 0.85) : S.layout.textWidth);
   let y = H * (tall ? 0.30 : 0.085);
 
-  const head = drawBlock(ctx, S.text.kicker, S.type.display,
-    { x, y, maxWidth: colMax, scale: k });
+  const head = block(ctx, S, 'display', S.text.kicker, S.type.display,
+    { x, y, maxWidth: colMax, scale: k }, W, H);
 
   // The rest of the stack centres on the headline's own width, which is what
   // gives this layout its off-axis look.
@@ -361,8 +391,8 @@ function design3(ctx, S, A, W, H) {
     y += S.rule.thickness * k + H * 0.045;
   }
 
-  const model = drawBlock(ctx, S.text.model, S.type.model,
-    { x: cx, y, align: 'center', maxWidth: colMax, scale: k });
+  const model = block(ctx, S, 'model', S.text.model, S.type.model,
+    { x: cx, y, align: 'center', maxWidth: colMax, scale: k }, W, H);
   y = model.bottom + H * 0.045;
 
   if (S.ruleB.show) {
@@ -371,8 +401,8 @@ function design3(ctx, S, A, W, H) {
     y += S.ruleB.thickness * k + H * 0.06;
   }
 
-  drawBlock(ctx, S.text.tagline, S.type.tagline,
-    { x: cx, y, align: 'center', maxWidth: colMax, scale: k });
+  block(ctx, S, 'tagline', S.text.tagline, S.type.tagline,
+    { x: cx, y, align: 'center', maxWidth: colMax, scale: k }, W, H);
 
   drawLogo(ctx, S, W, H, A.logo);
 }
@@ -447,12 +477,12 @@ function design4(ctx, S, A, W, H) {
     : W * Math.min(geom.topX, geom.bottomX) - x - W * 0.03;
 
   const items = [
-    { text: S.text.script, spec: S.type.script, gap: H * 0.11 },
-    { text: S.text.model, spec: S.type.model, gap: H * 0.055 },
+    { role: 'script', text: S.text.script, spec: S.type.script, gap: H * 0.11 },
+    { role: 'model', text: S.text.model, spec: S.type.model, gap: H * 0.055 },
     { rule: true, gap: H * 0.05 },
-    { text: S.text.tagline, spec: S.type.tagline }
+    { role: 'tagline', text: S.text.tagline, spec: S.type.tagline }
   ];
-  centredStack(ctx, S, items, { x, maxWidth: maxW, scale: k },
+  centredStack(ctx, S, items, { x, maxWidth: maxW, scale: k, W, H },
     tall ? H * 0.23 : H * 0.5);
 
   drawLogo(ctx, S, W, H, A.logo);
@@ -476,11 +506,14 @@ export const RENDERERS = {
  * @param S    settings
  * @param A    {boat, logo} loaded HTMLImageElements (either may be null)
  */
-export function renderDesign(ctx, S, A, W, H) {
+export function renderDesign(ctx, S, A, W, H, opts = {}) {
+  TRACK = !!opts.track;
+  if (TRACK) HITS = [];
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   (RENDERERS[S.template] || boldLeft)(ctx, S, A, W, H);
   ctx.restore();
+  TRACK = false;
 }

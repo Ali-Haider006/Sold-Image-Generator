@@ -70,15 +70,30 @@ export const DEFAULTS = {
   },
 
   photo: {
-    focusX: 0.5,        // 0..1, which part of the photo stays in frame
-    focusY: 0.5,
     zoom: 1,
+    offsetX: 0,         // free pan, as a fraction of the frame
+    offsetY: 0,
     brightness: 1,
     contrast: 1,
     saturate: 1,
     overlay: '#0a1730',
     overlayOpacity: 0,
-    scrimStrength: 0.92 // darkness of the gradient the headline sits on
+    fadeOpacity: 0.92,  // how dark the fade gets at full strength
+    fadeLength: 0.66,   // how far across the frame it reaches
+    fadeHold: 0.30      // how much of that reach stays solid before falling off
+  },
+
+  // How wide the text column is allowed to be, as a fraction of the canvas.
+  // This is what caps a headline's size when "shrink to fit" is on.
+  layout: { textWidth: 0.50 },
+
+  // Per-text nudges, as fractions of the canvas. Set by dragging on the
+  // preview or by the sliders; they never shift the blocks around them.
+  offsets: {
+    display: { x: 0, y: 0 },
+    script:  { x: 0, y: 0 },
+    model:   { x: 0, y: 0 },
+    tagline: { x: 0, y: 0 }
   },
 
   brand: {
@@ -106,7 +121,9 @@ export const DEFAULTS = {
       borderWidth: 0,
       borderColor: '#0f2044',
       shadow: 0.18,
-      bleed: 'none'             // none | bottom | corner — let the wrapper run off-canvas
+      diameter: 0,              // 0 = size the badge from the art + padding
+      bleed: 'none',            // none | bottom | corner
+      bleedAmount: 0.3          // fraction of the badge hanging off the edge
     }
   },
 
@@ -124,27 +141,27 @@ export const DEFAULTS = {
     // Oversized "JUST SOLD" headline
     display: {
       family: 'Anton', weight: 400, size: 128, tracking: -2,
-      lineHeight: 0.92, transform: 'uppercase', color: '#ffffff'
+      lineHeight: 0.92, transform: 'uppercase', color: '#ffffff', fit: true
     },
     // Handwritten "Just Sold!" headline
     script: {
       family: 'Great Vibes', weight: 400, size: 118, tracking: 0,
-      lineHeight: 1, transform: 'none', color: '#0f2044'
+      lineHeight: 1, transform: 'none', color: '#0f2044', fit: true
     },
     // The boat itself — year, make, model
     model: {
       family: 'Montserrat', weight: 800, size: 42, tracking: 1,
-      lineHeight: 1.2, transform: 'uppercase', color: '#ffffff'
+      lineHeight: 1.2, transform: 'uppercase', color: '#ffffff', fit: true
     },
     // Secondary line; defaults are the site's body face
     tagline: {
       family: 'Montserrat', weight: 500, size: 26, tracking: 3.5,
-      lineHeight: 1.45, transform: 'uppercase', color: '#c9d4e4'
+      lineHeight: 1.45, transform: 'uppercase', color: '#c9d4e4', fit: true
     },
     // Spec strip labels/values on the editorial layout
     spec: {
       family: 'Montserrat', weight: 700, size: 16, tracking: 1.6,
-      lineHeight: 1.5, transform: 'uppercase', color: '#0f2044'
+      lineHeight: 1.5, transform: 'uppercase', color: '#0f2044', fit: true
     }
   },
 
@@ -208,14 +225,23 @@ const TRANSFORMS = [
   { value: 'capitalize', label: 'Title Case' }
 ];
 
+/** `role` keys the nudge offsets and the drag hit-testing. */
 function typeGroup(id, title, path, kind, opts = {}) {
+  const role = opts.role || path.split('.')[1];
   const f = [
     { key: `${path}.family`, label: 'Font family', type: 'font', options: fontOpts(kind), when: opts.familyWhen },
-    { key: `${path}.size`, label: 'Size', type: 'range', min: 8, max: opts.maxSize || 260, step: 1, unit: 'px' },
+    { key: `${path}.size`, label: 'Size', type: 'range', min: 8, max: opts.maxSize || 400, step: 0.1, unit: 'px' },
     { key: `${path}.tracking`, label: 'Letter spacing', type: 'range', min: -8, max: 24, step: 0.5, unit: 'px' },
     { key: `${path}.lineHeight`, label: 'Line height', type: 'range', min: 0.7, max: 2.2, step: 0.01, unit: '×' },
-    { key: `${path}.color`, label: 'Colour', type: 'color' }
+    { key: `${path}.color`, label: 'Colour', type: 'color' },
+    { key: `${path}.fit`, label: 'Shrink to fit column', type: 'checkbox' }
   ];
+  if (role !== 'spec') {
+    f.push(
+      { key: `offsets.${role}.x`, label: 'Nudge ↔', type: 'range', min: -0.6, max: 0.6, step: 0.002 },
+      { key: `offsets.${role}.y`, label: 'Nudge ↕', type: 'range', min: -0.6, max: 0.6, step: 0.002 }
+    );
+  }
   if (kind !== 'script') {
     f.splice(1, 0, { key: `${path}.weight`, label: 'Weight', type: 'select', options: WEIGHTS, numeric: true });
     f.push({ key: `${path}.transform`, label: 'Case', type: 'select', options: TRANSFORMS });
@@ -239,16 +265,32 @@ export const SCHEMA = [
   },
   {
     id: 'photo', title: 'Boat photo',
+    note: 'Move the photo with the sliders, or drag it directly on the preview.',
     fields: [
-      { key: 'photo.zoom', label: 'Zoom', type: 'range', min: 1, max: 2.5, step: 0.01, unit: '×' },
-      { key: 'photo.focusX', label: 'Move photo ↔', type: 'range', min: 0, max: 1, step: 0.01 },
-      { key: 'photo.focusY', label: 'Move photo ↕', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'photo.offsetX', label: 'Move photo ↔', type: 'range', min: -1, max: 1, step: 0.005 },
+      { key: 'photo.offsetY', label: 'Move photo ↕', type: 'range', min: -1, max: 1, step: 0.005 },
+      { key: 'photo.zoom', label: 'Zoom', type: 'range', min: 0.5, max: 4, step: 0.01, unit: '×' },
       { key: 'photo.brightness', label: 'Brightness', type: 'range', min: 0.4, max: 1.6, step: 0.01, unit: '×' },
       { key: 'photo.contrast', label: 'Contrast', type: 'range', min: 0.4, max: 1.8, step: 0.01, unit: '×' },
       { key: 'photo.saturate', label: 'Saturation', type: 'range', min: 0, max: 2, step: 0.01, unit: '×' },
       { key: 'photo.overlay', label: 'Tint colour', type: 'color' },
-      { key: 'photo.overlayOpacity', label: 'Tint strength', type: 'range', min: 0, max: 1, step: 0.01 },
-      { key: 'photo.scrimStrength', label: 'Headline scrim', type: 'range', min: 0, max: 1, step: 0.01 }
+      { key: 'photo.overlayOpacity', label: 'Tint strength', type: 'range', min: 0, max: 1, step: 0.01 }
+    ]
+  },
+  {
+    id: 'fade', title: 'Colour fade', show: ['design-3', 'bold-left', 'full-bleed'],
+    note: 'The brand-coloured field the headline sits on. Hold keeps it solid before it starts dissolving into the photo.',
+    fields: [
+      { key: 'photo.fadeOpacity', label: 'Fade opacity', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'photo.fadeLength', label: 'Fade length', type: 'range', min: 0.1, max: 1, step: 0.005 },
+      { key: 'photo.fadeHold', label: 'Solid hold', type: 'range', min: 0, max: 0.9, step: 0.005 }
+    ]
+  },
+  {
+    id: 'layout', title: 'Text column',
+    note: 'How wide text may run before "shrink to fit" kicks in. Widen this to let a headline get bigger.',
+    fields: [
+      { key: 'layout.textWidth', label: 'Column width', type: 'range', min: 0.2, max: 1, step: 0.005 }
     ]
   },
   {
@@ -288,12 +330,16 @@ export const SCHEMA = [
         { value: 'pill', label: 'Pill' }, { value: 'shield', label: 'Shield / badge' },
         { value: 'banner', label: 'Full-width banner' }
       ] },
+      { key: 'logo.wrapper.diameter', label: 'Badge size (0 = auto)', type: 'range', min: 0, max: 700, step: 1, unit: 'px' },
+      { key: 'logo.padding', label: 'Inner padding', type: 'range', min: 0, max: 160, step: 1, unit: 'px',
+        when: s => !s.logo.wrapper.diameter },
       { key: 'logo.wrapper.bleed', label: 'Bleed off edge', type: 'select', options: [
         { value: 'none', label: 'Keep fully on canvas' },
-        { value: 'bottom', label: 'Half off the bottom' },
+        { value: 'bottom', label: 'Off the bottom' },
         { value: 'corner', label: 'Into the nearest corner' }
       ] },
-      { key: 'logo.padding', label: 'Inner padding', type: 'range', min: 0, max: 120, step: 1, unit: 'px' },
+      { key: 'logo.wrapper.bleedAmount', label: 'Bleed amount', type: 'range', min: 0, max: 0.6, step: 0.005,
+        when: s => s.logo.wrapper.bleed !== 'none' },
       { key: 'logo.wrapper.fill', label: 'Fill colour', type: 'color' },
       { key: 'logo.wrapper.opacity', label: 'Fill opacity', type: 'range', min: 0, max: 1, step: 0.01 },
       { key: 'logo.wrapper.radius', label: 'Corner radius', type: 'range', min: 0, max: 120, step: 1, unit: 'px' },
@@ -321,10 +367,10 @@ export const SCHEMA = [
       { key: 'siteType.lockSecondary', label: 'Lock secondary text & taglines to site body', type: 'checkbox' }
     ]
   },
-  typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 320, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 320, show: ['design-4', 'diagonal-split', 'full-bleed'] }),
-  typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 140, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 100, familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 500, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-4', 'diagonal-split', 'full-bleed'] }),
+  typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 60, show: ['editorial'], familyWhen: st => !st.siteType.lockSecondary }),
   {
     id: 'rule', title: 'Accent rule',

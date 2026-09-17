@@ -29,7 +29,11 @@ export function logoGeometry(S, W, H, img) {
 
   // Wrapper box sized to fully contain the artwork plus padding.
   let ww, wh, radius = Wr.radius * k, shape = Wr.shape;
-  const square = Math.max(artW, artH) + pad * 2;
+  // An explicit diameter wins, so a badge can be sized to a reference
+  // directly instead of being inferred backwards from padding.
+  const square = Wr.diameter > 0
+    ? Wr.diameter * k
+    : Math.max(artW, artH) + pad * 2;
 
   switch (shape) {
     case 'none':    ww = artW; wh = artH; break;
@@ -58,11 +62,11 @@ export function logoGeometry(S, W, H, img) {
   // Let the badge run off the edge, the way dealer templates usually sit it.
   // Skipped for a dragged logo: an explicit placement always wins, otherwise
   // the badge would refuse to follow the pointer vertically.
-  if (L.position !== 'custom') {
-    if (Wr.bleed === 'bottom') cy = H - wh * 0.30;
-    else if (Wr.bleed === 'corner') {
-      cy = H - wh * 0.30;
-      cx = cx > W / 2 ? W - ww * 0.30 : ww * 0.30;
+  if (L.position !== 'custom' && Wr.bleed !== 'none') {
+    const over = Math.max(0, Math.min(0.6, Wr.bleedAmount ?? 0.3));
+    cy = H - wh / 2 + wh * over;
+    if (Wr.bleed === 'corner') {
+      cx = cx > W / 2 ? W - ww / 2 + ww * over : ww / 2 - ww * over;
     }
   }
 

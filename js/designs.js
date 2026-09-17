@@ -39,12 +39,16 @@ const DESIGN_3 = {
     tagline: 'ANOTHER DREAM\nON THE WATER!'
   },
   logo: {
-    position: 'bottom-right', size: 185, offsetX: 36, offsetY: -22, padding: 30,
-    wrapper: { shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0, bleed: 'none' }
+    position: 'bottom-right', size: 150, offsetX: 35, offsetY: -14, padding: 30,
+    wrapper: {
+      shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0,
+      diameter: 245, bleed: 'none', bleedAmount: 0.3
+    }
   },
   rule:  { show: true, color: '#2bb8b3', width: 180, thickness: 3 },
   ruleB: { show: true, color: '#2bb8b3', width: 270, thickness: 3 },
-  photo: { scrimStrength: 1, focusX: 0.62 }
+  layout: { textWidth: 0.50 },
+  photo: { fadeOpacity: 1, fadeLength: 0.66, fadeHold: 0.38, offsetX: 0.06, zoom: 1.1 }
 };
 
 const DESIGN_4 = {
@@ -69,16 +73,20 @@ const DESIGN_4 = {
     tagline: 'CONGRATULATIONS\nTO THE NEW OWNER!'
   },
   logo: {
-    position: 'top-right', size: 112, offsetX: 23, offsetY: 23, padding: 17,
-    wrapper: { shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0.12, bleed: 'none' }
+    position: 'top-right', size: 104, offsetX: 23, offsetY: 23, padding: 20,
+    wrapper: {
+      shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0.12,
+      diameter: 146, bleed: 'none', bleedAmount: 0.3
+    }
   },
+  layout: { textWidth: 0.32 },
   rule: { show: true, color: '#2bb8b3', width: 120, thickness: 4 },
   divider: {
     style: 'diagonal', topX: 0.405, midX: 0.39, bottomX: 0.468,
     band: 0.022, band2: 0.016, ghost: 0.07,
     color: '#12244d', color2: '#c8d4e2'
   },
-  photo: { focusX: 0.5 }
+  photo: { offsetX: 0, offsetY: 0, zoom: 1.1 }
 };
 
 export const DESIGNS = [

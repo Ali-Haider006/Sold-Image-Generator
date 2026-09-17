@@ -87,7 +87,7 @@ export function drawBlock(ctx, text, spec, opts = {}) {
   setFont(ctx, spec, size);
   let widest = Math.max(...rows.map(r => measureTracked(ctx, r, tracking)));
 
-  if (widest > maxWidth && widest > 0) {
+  if (spec.fit !== false && widest > maxWidth && widest > 0) {
     const f = maxWidth / widest;
     size *= f; tracking *= f; widest = maxWidth;
     setFont(ctx, spec, size);
@@ -121,14 +121,26 @@ export function drawBlock(ctx, text, spec, opts = {}) {
 
 /* ---------- images ---------- */
 
-/** object-fit: cover, with a focal point and extra zoom. */
-export function cover(ctx, img, x, y, w, h, focusX = 0.5, focusY = 0.5, zoom = 1) {
+/**
+ * object-fit: cover, then a free translation.
+ *
+ * The earlier focal-point form positioned the image by interpolating its
+ * OVERFLOW, so when the photo and the frame shared an aspect ratio the
+ * overflow was zero and the control did nothing at all. Cover-fitting to the
+ * centre and translating by an explicit offset always moves, at any zoom.
+ * `offsetX`/`offsetY` are fractions of the frame.
+ */
+export function cover(ctx, img, x, y, w, h, p = {}) {
   if (!img) return;
+  const { offsetX = 0, offsetY = 0, zoom = 1 } = p;
   const ir = img.naturalWidth / img.naturalHeight;
-  let dw = w, dh = h;
+  let dw, dh;
   if (ir > w / h) { dh = h; dw = dh * ir; } else { dw = w; dh = dw / ir; }
   dw *= zoom; dh *= zoom;
-  ctx.drawImage(img, x + (w - dw) * focusX, y + (h - dh) * focusY, dw, dh);
+  ctx.drawImage(img,
+    x + (w - dw) / 2 + offsetX * w,
+    y + (h - dh) / 2 + offsetY * h,
+    dw, dh);
 }
 
 /** object-fit: contain — used for the logo, which must never be cropped. */
@@ -147,7 +159,7 @@ export const filterString = p =>
 export function photo(ctx, img, p, x, y, w, h) {
   ctx.save();
   ctx.filter = filterString(p);
-  cover(ctx, img, x, y, w, h, p.focusX, p.focusY, p.zoom);
+  cover(ctx, img, x, y, w, h, p);
   ctx.filter = 'none';
   if (p.overlayOpacity > 0) {
     ctx.fillStyle = rgba(p.overlay, p.overlayOpacity);
