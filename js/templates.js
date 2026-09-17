@@ -203,61 +203,80 @@ diagonalSplit.displayFont = 'Montserrat';
 /* ================================================================
    3. FULL BLEED — corner tag over the photo, footer bar for the details
    ================================================================ */
+/* ================================================================
+   FULL BLEED — photo edge to edge, a solid tag panel, a solid footer bar
+   ================================================================
+   Both panels are plain rectangles with their own geometry, taken from the
+   reference at 1200x800: the tag is 31% x 36.3% flush into the top-left
+   corner, the bar is 18.1% of the height across the full width. Neither is
+   sized to its text and neither is faded — `panels.fade` is 0 by default, so
+   the bar meets the photo on a hard edge.
+   ================================================================ */
 function fullBleed(ctx, S, A, W, H) {
   const k = unit(W, H);
   const tall = isTall(W, H);
+  const P = S.panels;
 
   if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
   else placeholder(ctx, S, 0, 0, W, H);
 
-  const barH = H * (tall ? 0.20 : 0.185);
+  const barH = H * (tall ? P.barH * 1.45 : P.barH);
   const barY = H - barH;
 
-  scrim(ctx, 0, barY - H * 0.16, W, H * 0.16, S.brand.dark, S.photo.fadeOpacity * 0.7, 'bottom', 1);
-  ctx.fillStyle = S.brand.dark;
+  // Optional lift above the bar. The reference has none, so this is off by
+  // default and the rectangle keeps a clean edge.
+  if (P.fade > 0) {
+    scrim(ctx, 0, barY - H * P.fade, W, H * P.fade,
+      P.barFill, S.photo.fadeOpacity, 'bottom', 1);
+  }
+
+  ctx.fillStyle = rgba(P.barFill, P.barOpacity);
   ctx.fillRect(0, barY, W, barH);
 
-  // Top-left tag, sized to its own text.
-  const pad = W * 0.035;
-  const tag = drawBlock(ctx, S.text.script, S.type.script,
-    { scale: k, maxWidth: W * (tall ? 0.72 : 0.42), measureOnly: true });
-  ctx.fillStyle = rgba(S.brand.dark, 0.94);
-  ctx.fillRect(0, 0, tag.width + pad * 2, tag.height + pad * 1.5);
-  drawBlock(ctx, S.text.script, S.type.script, {
-    x: pad, y: (tag.height + pad * 1.5) / 2, baseline: 'middle',
-    scale: k, maxWidth: W * (tall ? 0.72 : 0.42)
-  });
+  // Tag panel: a designed rectangle, not a box wrapped around the words.
+  const tw = W * P.tagW;
+  const th = H * (tall ? P.tagH * 0.8 : P.tagH);
+  const tx = W * P.tagX;
+  const ty = H * P.tagY;
+  ctx.fillStyle = rgba(P.tagFill, P.tagOpacity);
+  ctx.fillRect(tx, ty, tw, th);
 
-  // The badge sits on top of the bar, so the footer text stops short of it.
-  const fx = W * 0.055;
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: tx + tw / 2, y: ty + th / 2, align: 'center', baseline: 'middle',
+    maxWidth: tw * 0.84, scale: k
+  }, W, H);
+
+  const fx = W * 0.046;
   const mid = barY + barH / 2;
   const geo = A.logo ? logoGeometry(S, W, H, A.logo) : null;
-  const overlapsBar = geo && geo.wrapper.y + geo.wrapper.h > barY && geo.wrapper.x + geo.wrapper.w > W * 0.4;
-  const guard = overlapsBar ? geo.wrapper.x - W * 0.03 : W * 0.95;
+  // The badge overlaps the bar, so the footer text stops short of it.
+  const guard = geo && geo.wrapper.x > W * 0.5
+    ? geo.wrapper.x - W * 0.025
+    : W * 0.96;
 
   if (tall) {
-    // Too narrow for a side-by-side footer — stack the two lines instead.
     centredStack(ctx, S, [
-      { text: S.text.model, spec: S.type.model, gap: barH * 0.12 },
-      { text: S.text.tagline, spec: S.type.tagline }
-    ], { x: fx, maxWidth: Math.max(W * 0.2, guard - fx), scale: k }, mid);
+      { role: 'model', text: S.text.model, spec: S.type.model, gap: barH * 0.1 },
+      { role: 'tagline', text: S.text.tagline, spec: S.type.tagline }
+    ], { x: fx, maxWidth: Math.max(W * 0.2, guard - fx), scale: k, W, H }, mid);
   } else {
-    const model = drawBlock(ctx, S.text.model, S.type.model, {
-      x: fx, y: mid, baseline: 'middle', scale: k, maxWidth: Math.min(W * 0.4, guard - fx)
-    });
-    const dx = Math.max(model.x + model.width + W * 0.05, W * 0.40);
-    const tagX = dx + W * 0.04;
-    const tagMaxW = guard - tagX;
+    const dx = W * P.dividerX;
 
-    if (tagMaxW > W * 0.08) {
-      if (S.rule.show) {
-        ctx.fillStyle = rgba(S.brand.light, 0.45);
-        ctx.fillRect(dx, mid - barH * 0.22, Math.max(1, S.rule.thickness * k * 0.4), barH * 0.44);
-      }
-      drawBlock(ctx, S.text.tagline, S.type.tagline, {
-        x: tagX, y: mid, baseline: 'middle', scale: k, maxWidth: tagMaxW
-      });
+    block(ctx, S, 'model', S.text.model, S.type.model, {
+      x: fx, y: mid, baseline: 'middle', scale: k, maxWidth: dx - fx - W * 0.03
+    }, W, H);
+
+    if (S.rule.show) {
+      ctx.fillStyle = rgba(S.rule.color, 0.5);
+      ctx.fillRect(dx, mid - barH * 0.34,
+        Math.max(1, S.rule.thickness * k), barH * 0.68);
     }
+
+    const tagX = dx + W * 0.038;
+    block(ctx, S, 'tagline', S.text.tagline, S.type.tagline, {
+      x: tagX, y: mid, baseline: 'middle', scale: k,
+      maxWidth: Math.max(W * 0.12, guard - tagX)
+    }, W, H);
   }
 
   drawLogo(ctx, S, W, H, A.logo);

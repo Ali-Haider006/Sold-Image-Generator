@@ -89,6 +89,45 @@ const DESIGN_4 = {
   photo: { offsetX: 0, offsetY: 0, zoom: 1.1 }
 };
 
+/* Full Bleed, measured off the reference at 1200x800. */
+const FULL_BLEED = {
+  template: 'full-bleed',
+  type: {
+    script: {
+      family: 'Breathing', weight: 400, size: 82, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#ffffff', fit: true
+    },
+    model: {
+      family: 'Montserrat', weight: 800, size: 38, tracking: 1.2,
+      lineHeight: 1.22, transform: 'uppercase', color: '#ffffff', fit: true
+    },
+    tagline: {
+      family: 'Montserrat', weight: 500, size: 26, tracking: 3.2,
+      lineHeight: 1.45, transform: 'uppercase', color: '#dfe6ef', fit: true
+    }
+  },
+  text: {
+    script: 'Just\nSold!',
+    model: '2026 SEA FOX\n268 COMMANDER',
+    tagline: 'CONGRATULATIONS\nTO THE NEW OWNER!'
+  },
+  logo: {
+    position: 'bottom-right', size: 158, offsetX: 20, offsetY: -13, padding: 30,
+    wrapper: {
+      shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0,
+      diameter: 225, bleed: 'none', bleedAmount: 0.3
+    }
+  },
+  rule: { show: true, color: '#ffffff', width: 2, thickness: 2 },
+  panels: {
+    tagX: 0, tagY: 0, tagW: 0.31, tagH: 0.3625,
+    tagFill: '#12244d', tagOpacity: 1,
+    barH: 0.181, barFill: '#12244d', barOpacity: 1,
+    dividerX: 0.4125, fade: 0
+  },
+  photo: { zoom: 1.02, offsetX: 0, offsetY: 0 }
+};
+
 export const DESIGNS = [
   {
     id: 'design-3', slot: 3, name: 'Bold Fade', status: 'ready',
@@ -123,10 +162,20 @@ export const DESIGNS = [
     }
   },
   {
-    id: 'draft-full-bleed', slot: null, name: 'Full Bleed', status: 'draft',
-    blurb: 'Not yet numbered or spec’d — corner tag with a footer bar.',
-    preset: { template: 'full-bleed' },
-    paletteMap: null
+    id: 'full-bleed', slot: null, name: 'Full Bleed', status: 'ready',
+    blurb: 'Photo edge to edge, solid corner tag, solid footer bar. Not yet numbered.',
+    preset: FULL_BLEED,
+    /** Both panels and the type take the logo's major colour. */
+    paletteMap(S, r) {
+      S.panels.tagFill = r.primary;
+      S.panels.barFill = r.primary;
+      S.brand.dark = r.primary;
+      S.type.script.color = r.light;
+      S.type.model.color = r.light;
+      S.type.tagline.color = tint(r.primary, 0.86);
+      S.rule.color = r.light;
+      S.logo.wrapper.fill = r.light;
+    }
   },
   {
     id: 'draft-editorial', slot: null, name: 'Editorial', status: 'draft',

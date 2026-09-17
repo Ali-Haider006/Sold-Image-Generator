@@ -83,6 +83,16 @@ export const DEFAULTS = {
     fadeHold: 0.30      // how much of that reach stays solid before falling off
   },
 
+  // Solid panels for the full-bleed layout. All fractions of the canvas, so
+  // the rectangles are designed geometry rather than boxes fitted to text.
+  panels: {
+    tagX: 0, tagY: 0, tagW: 0.31, tagH: 0.3625,
+    tagFill: '#12244d', tagOpacity: 1,
+    barH: 0.181, barFill: '#12244d', barOpacity: 1,
+    dividerX: 0.4125,
+    fade: 0                   // 0 = hard edge above the bar
+  },
+
   // How wide the text column is allowed to be, as a fraction of the canvas.
   // This is what caps a headline's size when "shrink to fit" is on.
   layout: { textWidth: 0.50 },
@@ -278,7 +288,7 @@ export const SCHEMA = [
     ]
   },
   {
-    id: 'fade', tab: 'photo', title: 'Colour fade', show: ['design-3', 'bold-left', 'full-bleed'],
+    id: 'fade', tab: 'photo', title: 'Colour fade', show: ['design-3', 'bold-left'],
     note: 'The brand-coloured field the headline sits on. Hold keeps it solid before it starts dissolving into the photo.',
     fields: [
       { key: 'photo.fadeOpacity', label: 'Fade opacity', type: 'range', min: 0, max: 1, step: 0.01 },
@@ -372,6 +382,23 @@ export const SCHEMA = [
   typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 60, show: ['editorial'], familyWhen: st => !st.siteType.lockSecondary }),
+  {
+    id: 'panels', tab: 'style', title: 'Solid panels', show: ['full-bleed'],
+    note: 'The tag block and the footer bar are plain rectangles with their own geometry — they are not sized to the text inside them.',
+    fields: [
+      { key: 'panels.tagX', label: 'Tag left', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'panels.tagY', label: 'Tag top', type: 'range', min: 0, max: 0.8, step: 0.002 },
+      { key: 'panels.tagW', label: 'Tag width', type: 'range', min: 0.05, max: 1, step: 0.002 },
+      { key: 'panels.tagH', label: 'Tag height', type: 'range', min: 0.05, max: 1, step: 0.002 },
+      { key: 'panels.tagFill', label: 'Tag colour', type: 'color' },
+      { key: 'panels.tagOpacity', label: 'Tag opacity', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'panels.barH', label: 'Footer height', type: 'range', min: 0.05, max: 0.5, step: 0.002 },
+      { key: 'panels.barFill', label: 'Footer colour', type: 'color' },
+      { key: 'panels.barOpacity', label: 'Footer opacity', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'panels.dividerX', label: 'Divider position', type: 'range', min: 0.15, max: 0.9, step: 0.002 },
+      { key: 'panels.fade', label: 'Fade above footer', type: 'range', min: 0, max: 0.4, step: 0.005 }
+    ]
+  },
   {
     id: 'rule', tab: 'style', title: 'Accent rule',
     fields: [

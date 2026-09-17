@@ -253,10 +253,13 @@ function renderGallery() {
   const grid = $('#design-grid');
   grid.innerHTML = '';
 
-  const ready = DESIGNS.filter(d => d.status === 'ready');
+  // Only designs that have been given a number count toward the eight.
+  const numbered = DESIGNS.filter(d => d.status === 'ready' && d.slot);
+  const unnumbered = DESIGNS.filter(d => d.status === 'ready' && !d.slot).length;
   $('#gallery-count').textContent =
-    `${ready.length} of ${DESIGN_SLOTS} numbered designs are built. ` +
-    `Slots ${pendingSlots().join(', ')} are waiting on their specifications.`;
+    `${numbered.length} of ${DESIGN_SLOTS} numbered designs are built` +
+    (unnumbered ? `, plus ${unnumbered} built but not yet numbered` : '') +
+    `. Slots ${pendingSlots().join(', ')} are waiting on their specifications.`;
 
   for (const d of DESIGNS) grid.appendChild(designCard(d));
   for (const slot of pendingSlots()) grid.appendChild(pendingCard(slot));
