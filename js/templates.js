@@ -16,7 +16,9 @@
      displayFont — the headline face the layout was drawn around
 ------------------------------------------------------------------- */
 
-import { unit, drawBlock, photo, scrim, rgba, line, chevronPath } from './draw.js';
+import {
+  unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath
+} from './draw.js';
 import { drawLogo, logoGeometry } from './logo.js';
 
 /** Portrait and square canvases stack their regions instead of splitting. */
@@ -313,7 +315,155 @@ editorial.defaults = { position: 'top-right', wrapper: { shape: 'shield', bleed:
 editorial.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
 editorial.displayFont = 'Playfair Display';
 
+
+/* ================================================================
+   DESIGN 3 — "JUST SOLD" over a brand-coloured fade
+   ================================================================
+   Built to the supplied spec at the 1200x800 reference:
+     headline  Intro Rust 150
+     boat name Montserrat 33.3, centred on the headline's own width
+     tagline   Montserrat 31.7
+   The fade colour is the logo's major extracted colour, and the badge sits
+   in the bottom-right corner on a white circle.
+   ================================================================ */
+function design3(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+
+  ctx.fillStyle = S.brand.dark;
+  ctx.fillRect(0, 0, W, H);
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+
+  // A solid colour field that holds, then dissolves into the photograph —
+  // not a vignette. `hold` is what keeps the left third fully opaque.
+  if (tall) {
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'bottom', 0.72, 0.30);
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength * 0.4, 'left', 0.5, 0.1);
+  } else {
+    scrim(ctx, 0, 0, W, H, S.brand.dark, S.photo.scrimStrength, 'left', 0.66, 0.38);
+  }
+
+  const x = W * (tall ? 0.075 : 0.075);
+  const colMax = W * (tall ? 0.85 : 0.44);
+  let y = H * (tall ? 0.30 : 0.085);
+
+  const head = drawBlock(ctx, S.text.kicker, S.type.display,
+    { x, y, maxWidth: colMax, scale: k });
+
+  // The rest of the stack centres on the headline's own width, which is what
+  // gives this layout its off-axis look.
+  const cx = head.x + head.width / 2;
+  y = head.bottom + H * 0.075;
+
+  if (S.rule.show) {
+    line(ctx, x, y, S.rule.width * k, S.rule.thickness * k, S.rule.color);
+    y += S.rule.thickness * k + H * 0.045;
+  }
+
+  const model = drawBlock(ctx, S.text.model, S.type.model,
+    { x: cx, y, align: 'center', maxWidth: colMax, scale: k });
+  y = model.bottom + H * 0.045;
+
+  if (S.ruleB.show) {
+    const wB = S.ruleB.width * k;
+    line(ctx, model.x + model.width - wB, y, wB, S.ruleB.thickness * k, S.ruleB.color);
+    y += S.ruleB.thickness * k + H * 0.06;
+  }
+
+  drawBlock(ctx, S.text.tagline, S.type.tagline,
+    { x: cx, y, align: 'center', maxWidth: colMax, scale: k });
+
+  drawLogo(ctx, S, W, H, A.logo);
+}
+design3.defaults = { position: 'bottom-right', wrapper: { shape: 'circle', bleed: 'none' } };
+design3.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'light' };
+design3.displayFont = 'Intro Rust';
+
+/* ================================================================
+   DESIGN 4 — brush script on a light panel, diagonal geometric divider
+   ================================================================
+   Spec at the 1200x800 reference:
+     script    Breathing 92.2, colour from the logo
+     boat name Montserrat 30.3, colour from the logo
+     tagline   Montserrat 22.7, grey
+   The divider angle, band widths and colours are all settings, so the
+   geometry can be dialled onto the reference exactly.
+   ================================================================ */
+function design4(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+  const d = S.divider;
+
+  ctx.fillStyle = S.brand.light;
+  ctx.fillRect(0, 0, W, H);
+
+  // The light panel carries a very faint wash of the same photo.
+  if (A.boat && d.ghost > 0) {
+    ctx.save();
+    ctx.globalAlpha = d.ghost;
+    photo(ctx, A.boat, S.photo, 0, 0, W, H);
+    ctx.restore();
+  }
+
+  const geom = tall
+    ? { ...d, topX: d.topX, bottomX: d.bottomX }
+    : d;
+
+  if (tall) {
+    // Stacked: the divider becomes a horizontal band above the photo.
+    const splitY = H * 0.46;
+    const slant = H * 0.035;
+    const band = (i) => {
+      ctx.beginPath();
+      ctx.moveTo(0, splitY + slant + i);
+      ctx.lineTo(W, splitY - slant + i);
+      ctx.lineTo(W, H); ctx.lineTo(0, H);
+      ctx.closePath();
+    };
+    ctx.fillStyle = d.color2; band(0); ctx.fill();
+    ctx.fillStyle = d.color; band(H * d.band2); ctx.fill();
+    ctx.save(); band(H * (d.band2 + d.band)); ctx.clip();
+    if (A.boat) photo(ctx, A.boat, S.photo, 0, splitY, W, H - splitY);
+    else placeholder(ctx, S, 0, splitY, W, H - splitY);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = d.color2;
+    dividerPath(ctx, W, H, geom, -(d.band + d.band2)); ctx.fill();
+    ctx.fillStyle = d.color;
+    dividerPath(ctx, W, H, geom, -d.band); ctx.fill();
+
+    ctx.save();
+    dividerPath(ctx, W, H, geom, 0);
+    ctx.clip();
+    if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+    else placeholder(ctx, S, W * geom.topX, 0, W * (1 - geom.topX), H);
+    ctx.restore();
+  }
+
+  const x = W * 0.055;
+  const maxW = tall
+    ? W * 0.89
+    : W * Math.min(geom.topX, geom.bottomX) - x - W * 0.03;
+
+  const items = [
+    { text: S.text.script, spec: S.type.script, gap: H * 0.11 },
+    { text: S.text.model, spec: S.type.model, gap: H * 0.055 },
+    { rule: true, gap: H * 0.05 },
+    { text: S.text.tagline, spec: S.type.tagline }
+  ];
+  centredStack(ctx, S, items, { x, maxWidth: maxW, scale: k },
+    tall ? H * 0.23 : H * 0.5);
+
+  drawLogo(ctx, S, W, H, A.logo);
+}
+design4.defaults = { position: 'top-right', wrapper: { shape: 'circle', bleed: 'none' } };
+design4.surfaces = { display: 'light', script: 'light', model: 'light', tagline: 'light', spec: 'light' };
+design4.displayFont = 'Montserrat';
+
 export const RENDERERS = {
+  'design-3': design3,
+  'design-4': design4,
   'bold-left': boldLeft,
   'diagonal-split': diagonalSplit,
   'full-bleed': fullBleed,

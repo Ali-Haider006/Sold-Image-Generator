@@ -6,7 +6,7 @@
    without losing focus on whatever field is being typed into).
 ------------------------------------------------------------------- */
 
-import { SCHEMA, TEMPLATES, get, set } from './settings.js';
+import { SCHEMA, get, set } from './settings.js';
 import { ensureFont, stack } from './fonts.js';
 
 const el = (tag, cls, text) => {
@@ -41,7 +41,7 @@ export class Panel {
       const body = el('div', 'group-body');
 
       if (group.note) body.appendChild(el('p', 'note', group.note));
-      for (const field of group.fields) body.appendChild(this.buildField(field));
+      for (const field of group.fields) body.appendChild(this.buildField(field, group));
 
       sec.append(head, body);
       this.root.appendChild(sec);
@@ -50,7 +50,7 @@ export class Panel {
     this.refresh();
   }
 
-  buildField(field) {
+  buildField(field, group) {
     const row = el('div', 'row');
     const label = el('label', 'row-label', field.label);
     label.htmlFor = 'f-' + field.key;
@@ -153,7 +153,7 @@ export class Panel {
     }
 
     row.appendChild(wrap);
-    this.controls.set(field.key, { row, read, write, field });
+    this.controls.set(field.key, { row, read, write, field, group });
     return row;
   }
 
@@ -175,9 +175,12 @@ export class Panel {
   /** Hide controls that do not apply to the current template or state. */
   applyVisibility() {
     const tpl = this.S.template;
+    const applies = show => !show || show.includes(tpl);
     for (const [, c] of this.controls) {
       const f = c.field;
-      const okTpl = !f.show || f.show.includes(tpl);
+      // A group-scoped section hides its rows too, so a row's own `hidden`
+      // is always the truth about whether that control is reachable.
+      const okTpl = applies(f.show) && applies(c.group?.show);
       const okWhen = !f.when || f.when(this.S);
       c.row.hidden = !(okTpl && okWhen);
     }
@@ -190,25 +193,6 @@ export class Panel {
       sec.hidden = !(okTpl && anyVisible);
     }
   }
-}
-
-/** Template chooser — separate from SCHEMA because it drives visibility. */
-export function buildTemplatePicker(container, settings, onPick) {
-  container.innerHTML = '';
-  for (const [id, t] of Object.entries(TEMPLATES)) {
-    const b = el('button', 'tpl');
-    b.type = 'button';
-    b.dataset.id = id;
-    b.innerHTML = `<span class="tpl-thumb tpl-${id}" aria-hidden="true"></span>
-      <span class="tpl-name">${t.label.split('—')[0].trim()}</span>
-      <span class="tpl-desc">${t.label.split('—')[1]?.trim() || ''}</span>`;
-    b.addEventListener('click', () => onPick(id));
-    container.appendChild(b);
-  }
-  const mark = () => container.querySelectorAll('.tpl')
-    .forEach(b => b.classList.toggle('active', b.dataset.id === settings.template));
-  mark();
-  return mark;
 }
 
 /** Spec-strip editor (variable-length, so it sits outside SCHEMA). */

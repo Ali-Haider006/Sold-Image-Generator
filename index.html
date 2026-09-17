@@ -16,57 +16,103 @@
     <span class="mark" aria-hidden="true"></span>
     <div>
       <h1>Sold Image Generator</h1>
-      <p>Boat photo + logo → social post</p>
+      <p id="step-label">Step 1 — add your artwork</p>
     </div>
   </div>
   <div class="topbar-actions">
     <span id="dims-readout" class="readout"></span>
-    <button type="button" id="copy" class="btn">Copy</button>
-    <button type="button" id="download" class="btn primary">Download</button>
+    <button type="button" id="back-to-gallery" class="btn" hidden>← All designs</button>
+    <button type="button" id="copy" class="btn" hidden>Copy</button>
+    <button type="button" id="download" class="btn primary" hidden>Download PNG</button>
   </div>
 </header>
 
-<main class="layout">
+<!-- ============================================ 1 · INTAKE -->
+<main class="screen intake" id="screen-intake">
+  <div class="intake-inner">
+    <h2>Start with the boat and your logo</h2>
+    <p class="lede">Both images stay on your machine — nothing is uploaded anywhere.
+      Your logo's colours are read automatically and applied to every design.</p>
 
-  <!-- ------------------------------------------------ sidebar -->
+    <div class="intake-grid">
+      <div id="boat-drop" class="drop big" tabindex="0" role="button" aria-label="Upload the boat photo">
+        <span class="drop-icon" aria-hidden="true">⛴</span>
+        <strong>Boat photo</strong>
+        <span>Click or drop an image</span>
+        <em id="boat-name"></em>
+        <canvas class="drop-thumb" id="boat-thumb" width="240" height="160" hidden></canvas>
+      </div>
+      <input type="file" id="boat-file" accept="image/*" hidden>
+
+      <div id="logo-drop" class="drop big" tabindex="0" role="button" aria-label="Upload the dealership logo">
+        <span class="drop-icon" aria-hidden="true">◎</span>
+        <strong>Dealership logo</strong>
+        <span>PNG with transparency works best</span>
+        <em id="logo-name"></em>
+        <canvas class="drop-thumb" id="logo-thumb" width="240" height="160" hidden></canvas>
+      </div>
+      <input type="file" id="logo-file" accept="image/*" hidden>
+    </div>
+
+    <label class="field">
+      <span>Boat name</span>
+      <textarea id="intake-model" rows="2" placeholder="2026 SEA FOX&#10;268 COMMANDER"></textarea>
+      <small>One line per row. Appears on every design.</small>
+    </label>
+
+    <div id="intake-palette" class="intake-palette" hidden>
+      <span class="field-label">Colours read from your logo</span>
+      <div id="swatches" class="swatches"></div>
+      <div id="roles" class="roles"></div>
+    </div>
+
+    <details class="fonts-note">
+      <summary>Licensed fonts — Intro Rust &amp; Breathing</summary>
+      <p class="note">These two are commercial faces that cannot be fetched from a CDN, so the
+        designs currently render with the closest free stand-ins
+        (<strong>Archivo Black</strong> and <strong>Kaushan Script</strong>). Drop your licensed
+        <code>.woff2</code>, <code>.otf</code> or <code>.ttf</code> here and the designs switch to
+        the real face immediately — nothing else changes.</p>
+      <div class="font-slots" id="font-slots"></div>
+    </details>
+
+    <button type="button" id="to-gallery" class="btn primary wide big-btn" disabled>
+      Generate designs
+    </button>
+    <p class="hint" id="intake-hint">Add a boat photo and a logo to continue.</p>
+  </div>
+</main>
+
+<!-- ============================================ 2 · GALLERY -->
+<main class="screen gallery" id="screen-gallery" hidden>
+  <div class="gallery-inner">
+    <div class="gallery-head">
+      <div>
+        <h2>Pick a design to edit</h2>
+        <p class="lede" id="gallery-count"></p>
+      </div>
+      <button type="button" id="back-to-intake" class="btn ghost">← Change artwork</button>
+    </div>
+    <div id="design-grid" class="design-grid"></div>
+  </div>
+</main>
+
+<!-- ============================================ 3 · EDITOR -->
+<main class="screen editor" id="screen-editor" hidden>
   <aside class="sidebar" aria-label="Design controls">
-
     <section class="group">
-      <button type="button" class="group-head"><span>1 · Artwork</span><span class="chev">▾</span></button>
+      <button type="button" class="group-head"><span>Artwork</span><span class="chev">▾</span></button>
       <div class="group-body">
-        <div id="boat-drop" class="drop" tabindex="0" role="button" aria-label="Upload the boat photo">
-          <strong>Boat photo</strong>
-          <span>Click or drop an image</span>
-          <em id="boat-name"></em>
-        </div>
-        <input type="file" id="boat-file" accept="image/*" hidden>
-
-        <div id="logo-drop" class="drop" tabindex="0" role="button" aria-label="Upload the dealership logo">
-          <strong>Dealership logo</strong>
-          <span>PNG with transparency works best</span>
-          <em id="logo-name"></em>
-        </div>
-        <input type="file" id="logo-file" accept="image/*" hidden>
+        <div id="editor-assets" class="editor-assets"></div>
+        <button type="button" id="replace-art" class="btn ghost wide">Replace photo or logo</button>
       </div>
     </section>
 
     <section class="group">
-      <button type="button" class="group-head"><span>2 · Colours from the logo</span><span class="chev">▾</span></button>
+      <button type="button" class="group-head"><span>Colours from the logo</span><span class="chev">▾</span></button>
       <div class="group-body">
-        <p id="palette-empty" class="note">Upload a logo and its palette is read automatically.</p>
-        <div id="swatches" class="swatches"></div>
-        <div id="roles" class="roles"></div>
-        <div id="palette-actions" class="btn-row" hidden>
-          <button type="button" id="apply-palette" class="btn primary wide">Apply palette to design</button>
-          <button type="button" id="reextract" class="btn ghost">Re-read</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="group">
-      <button type="button" class="group-head"><span>3 · Template</span><span class="chev">▾</span></button>
-      <div class="group-body">
-        <div id="templates" class="templates"></div>
+        <div id="editor-swatches" class="swatches"></div>
+        <button type="button" id="apply-palette" class="btn primary wide">Re-apply palette to this design</button>
       </div>
     </section>
 
@@ -76,39 +122,25 @@
     <section class="group" id="specs-group">
       <button type="button" class="group-head"><span>Spec strip</span><span class="chev">▾</span></button>
       <div class="group-body">
-        <p class="note">Shown along the bottom of the editorial template.</p>
         <div id="specs" class="specs"></div>
       </div>
     </section>
 
     <section class="group">
-      <button type="button" class="group-head"><span>Brand kits</span><span class="chev">▾</span></button>
+      <button type="button" class="group-head"><span>Reset</span><span class="chev">▾</span></button>
       <div class="group-body">
-        <p class="note">Save the whole configuration — colours, type, logo treatment — and reuse it on the next sale.</p>
-        <div class="row">
-          <select id="preset-list"><option value="">Saved brand kits…</option></select>
-          <button type="button" id="delete-preset" class="icon-btn" title="Delete selected kit">✕</button>
-        </div>
-        <div class="btn-row">
-          <button type="button" id="save-preset" class="btn">Save current</button>
-          <button type="button" id="export-json" class="btn ghost">Export JSON</button>
-          <label class="btn ghost file-btn">Import JSON
-            <input type="file" id="import-json" accept="application/json" hidden>
-          </label>
-        </div>
-        <button type="button" id="reset" class="btn danger wide">Reset everything</button>
+        <p class="note">Puts this design back to its specified defaults. Your photo, logo and boat name are kept.</p>
+        <button type="button" id="reset" class="btn danger wide">Reset this design</button>
       </div>
     </section>
   </aside>
 
-  <!-- ------------------------------------------------ stage -->
   <section class="stage">
     <div class="canvas-wrap">
       <canvas id="preview" aria-label="Design preview"></canvas>
     </div>
-    <p class="hint">Drag the logo to reposition it · drag anywhere else to pan the photo</p>
+    <p class="hint">Drag the logo to reposition it · drag anywhere else to move the photo</p>
   </section>
-
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

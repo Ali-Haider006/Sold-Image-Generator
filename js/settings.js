@@ -117,7 +117,7 @@ export const DEFAULTS = {
     heading: 'Anton',
     body: 'Montserrat',
     lockHeading: false,
-    lockSecondary: true
+    lockSecondary: false
   },
 
   type: {
@@ -153,6 +153,27 @@ export const DEFAULTS = {
     color: '#2bb8b3',
     width: 120,
     thickness: 5
+  },
+
+  // Design 3 brackets the boat name between two rules of different lengths.
+  ruleB: {
+    show: false,
+    color: '#2bb8b3',
+    width: 270,
+    thickness: 3
+  },
+
+  // Design 4's geometric divider. x values are fractions of canvas width.
+  divider: {
+    style: 'diagonal',
+    topX: 0.405,
+    midX: 0.39,
+    bottomX: 0.468,
+    band: 0.022,
+    band2: 0.016,
+    ghost: 0.10,
+    color: '#12244d',
+    color2: '#c8d4e2'
   },
 
   text: {
@@ -220,8 +241,8 @@ export const SCHEMA = [
     id: 'photo', title: 'Boat photo',
     fields: [
       { key: 'photo.zoom', label: 'Zoom', type: 'range', min: 1, max: 2.5, step: 0.01, unit: '×' },
-      { key: 'photo.focusX', label: 'Focus ↔', type: 'range', min: 0, max: 1, step: 0.01 },
-      { key: 'photo.focusY', label: 'Focus ↕', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'photo.focusX', label: 'Move photo ↔', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'photo.focusY', label: 'Move photo ↕', type: 'range', min: 0, max: 1, step: 0.01 },
       { key: 'photo.brightness', label: 'Brightness', type: 'range', min: 0.4, max: 1.6, step: 0.01, unit: '×' },
       { key: 'photo.contrast', label: 'Contrast', type: 'range', min: 0.4, max: 1.8, step: 0.01, unit: '×' },
       { key: 'photo.saturate', label: 'Saturation', type: 'range', min: 0, max: 2, step: 0.01, unit: '×' },
@@ -284,8 +305,8 @@ export const SCHEMA = [
   {
     id: 'content', title: 'Text content',
     fields: [
-      { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['bold-left', 'editorial'] },
-      { key: 'text.script', label: 'Script headline', type: 'text', show: ['diagonal-split', 'full-bleed'] },
+      { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
+      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-4', 'diagonal-split', 'full-bleed'] },
       { key: 'text.model', label: 'Boat / model', type: 'textarea', rows: 2 },
       { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2 }
     ]
@@ -300,8 +321,8 @@ export const SCHEMA = [
       { key: 'siteType.lockSecondary', label: 'Lock secondary text & taglines to site body', type: 'checkbox' }
     ]
   },
-  typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 320, show: ['bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 320, show: ['diagonal-split', 'full-bleed'] }),
+  typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 320, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 320, show: ['design-4', 'diagonal-split', 'full-bleed'] }),
   typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 140, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 100, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 60, show: ['editorial'], familyWhen: st => !st.siteType.lockSecondary }),
@@ -312,6 +333,35 @@ export const SCHEMA = [
       { key: 'rule.color', label: 'Colour', type: 'color' },
       { key: 'rule.width', label: 'Length', type: 'range', min: 20, max: 400, step: 1, unit: 'px' },
       { key: 'rule.thickness', label: 'Thickness', type: 'range', min: 1, max: 24, step: 0.5, unit: 'px' }
+    ]
+  },
+  {
+    id: 'ruleB', title: 'Second accent rule', show: ['design-3'],
+    note: 'The shorter rule sits above the boat name, this one below it.',
+    fields: [
+      { key: 'ruleB.show', label: 'Show second rule', type: 'checkbox' },
+      { key: 'ruleB.color', label: 'Colour', type: 'color' },
+      { key: 'ruleB.width', label: 'Length', type: 'range', min: 20, max: 500, step: 1, unit: 'px' },
+      { key: 'ruleB.thickness', label: 'Thickness', type: 'range', min: 1, max: 24, step: 0.5, unit: 'px' }
+    ]
+  },
+  {
+    id: 'divider', title: 'Geometric divider', show: ['design-4'],
+    note: 'Where the photo starts, as a fraction of the width — top edge and bottom edge separately, so the angle is yours to set.',
+    fields: [
+      { key: 'divider.style', label: 'Shape', type: 'select', options: [
+        { value: 'diagonal', label: 'Straight diagonal' },
+        { value: 'chevron', label: 'Chevron (points left at centre)' }
+      ] },
+      { key: 'divider.topX', label: 'Top edge', type: 'range', min: 0.1, max: 0.9, step: 0.002 },
+      { key: 'divider.bottomX', label: 'Bottom edge', type: 'range', min: 0.1, max: 0.9, step: 0.002 },
+      { key: 'divider.midX', label: 'Chevron point', type: 'range', min: 0.1, max: 0.9, step: 0.002,
+        when: s => s.divider.style === 'chevron' },
+      { key: 'divider.color', label: 'Band colour', type: 'color' },
+      { key: 'divider.band', label: 'Band width', type: 'range', min: 0, max: 0.12, step: 0.001 },
+      { key: 'divider.color2', label: 'Outer band colour', type: 'color' },
+      { key: 'divider.band2', label: 'Outer band width', type: 'range', min: 0, max: 0.12, step: 0.001 },
+      { key: 'divider.ghost', label: 'Photo wash on panel', type: 'range', min: 0, max: 0.5, step: 0.01 }
     ]
   }
 ];

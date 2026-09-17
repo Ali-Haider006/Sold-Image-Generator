@@ -159,8 +159,12 @@ export function photo(ctx, img, p, x, y, w, h) {
 /**
  * Directional gradient scrim so light type stays legible over a photo.
  * Eased with extra stops — a two-stop linear gradient reads as a visible band.
+ *
+ * `hold` (0..1 of the reach) keeps the scrim fully opaque before it starts to
+ * fall off, which is what separates a soft vignette from a solid colour panel
+ * that dissolves into the photo.
  */
-export function scrim(ctx, x, y, w, h, color, strength, dir = 'left', reach = 0.62) {
+export function scrim(ctx, x, y, w, h, color, strength, dir = 'left', reach = 0.62, hold = 0) {
   if (strength <= 0) return;
   const [x0, y0, x1, y1] = {
     left: [x, y, x + w * reach, y],
@@ -169,10 +173,28 @@ export function scrim(ctx, x, y, w, h, color, strength, dir = 'left', reach = 0.
     bottom: [x, y + h, x, y + h * (1 - reach)]
   }[dir];
   const g = ctx.createLinearGradient(x0, y0, x1, y1);
-  [[0, 1], [0.35, 0.82], [0.6, 0.45], [0.82, 0.14], [1, 0]]
-    .forEach(([stop, a]) => g.addColorStop(stop, rgba(color, a * strength)));
+  const k = Math.max(0, Math.min(0.9, hold));
+  const at = t => k + (1 - k) * t;
+  [[0, 1], [k, 1], [at(0.35), 0.82], [at(0.6), 0.45], [at(0.82), 0.14], [1, 0]]
+    .forEach(([stop, a]) => g.addColorStop(Math.min(1, stop), rgba(color, a * strength)));
   ctx.fillStyle = g;
   ctx.fillRect(x, y, w, h);
+}
+
+/**
+ * Photo region bounded on its left by a straight diagonal or a left-pointing
+ * chevron. `topX`/`midX`/`bottomX` are fractions of the canvas width.
+ */
+export function dividerPath(ctx, W, H, d, shift = 0) {
+  const top = (d.topX + shift) * W;
+  const bottom = (d.bottomX + shift) * W;
+  ctx.beginPath();
+  ctx.moveTo(top, 0);
+  ctx.lineTo(W, 0);
+  ctx.lineTo(W, H);
+  ctx.lineTo(bottom, H);
+  if (d.style === 'chevron') ctx.lineTo((d.midX + shift) * W, H / 2);
+  ctx.closePath();
 }
 
 /* ---------- shapes ---------- */
