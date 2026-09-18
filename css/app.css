@@ -203,8 +203,11 @@ button:focus-visible, .drop:focus-visible {
 input[type="number"].num {
   width: 64px; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums;
 }
-input[type="number"].readout-val {
-  flex: 0 0 auto; min-width: 44px; text-align: right;
+input[type="number"].num.wide { width: 100%; }
+
+/* The slider readout is a span, not an input — it must never be typed into. */
+.readout-val {
+  flex: 0 0 auto; min-width: 46px; text-align: right;
   font-size: 11.5px; color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
