@@ -9,9 +9,11 @@ python3 -m http.server 8000     # or any static server
 open http://localhost:8000
 ```
 
-It must be *served*, not opened as `file://` — the code is ES modules and the
-browser blocks module imports from the filesystem. Any static host works
-(GitHub Pages, S3, a folder behind nginx).
+> **It must be served, not opened as a file.** Double-clicking `index.html`
+> gives you a rendered page whose controls do nothing: browsers block ES module
+> imports over `file://`, silently unless the console is open. The page detects
+> this and says so. Any static host works — GitHub Pages, S3, a folder behind
+> nginx, or VS Code's Live Server.
 
 ## What it does
 

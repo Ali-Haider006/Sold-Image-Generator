@@ -37,6 +37,28 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------- file:// notice ---------- */
+
+.protocol-warning {
+  background: #2a1f0e; color: #f5e6c8;
+  border-bottom: 1px solid #6b5220;
+  padding: 18px 20px; font-size: 13.5px; line-height: 1.6;
+}
+.protocol-warning strong { display: block; font-size: 15px; margin-bottom: 6px; color: #ffd580; }
+.protocol-warning p { margin: 0 0 8px; max-width: 70ch; }
+.protocol-warning pre {
+  margin: 0 0 8px; padding: 10px 12px; overflow-x: auto;
+  background: #17120a; border: 1px solid #4a3a18; border-radius: 6px;
+  font: 12.5px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; color: #ffd580;
+}
+.protocol-warning code {
+  background: #17120a; padding: 1px 5px; border-radius: 4px; font-size: 12.5px;
+}
+.protocol-hint { opacity: .8; }
+/* The shell is a fixed-height flex column; let the page scroll so the notice
+   cannot push the editor off-screen. */
+body.is-file-protocol { overflow: auto; height: auto; }
+
 /* ---------- top bar ---------- */
 
 .topbar {
@@ -181,8 +203,11 @@ button:focus-visible, .drop:focus-visible {
 input[type="number"].num {
   width: 64px; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums;
 }
-input[type="number"].readout-val {
-  flex: 0 0 auto; min-width: 44px; text-align: right;
+input[type="number"].num.wide { width: 100%; }
+
+/* The slider readout is a span, not an input — it must never be typed into. */
+.readout-val {
+  flex: 0 0 auto; min-width: 46px; text-align: right;
   font-size: 11.5px; color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -361,6 +386,20 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent);
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn:disabled:hover { border-color: var(--line); }
 
+.boat-record {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); padding: 16px 18px 18px; margin: 0;
+}
+.boat-record legend {
+  padding: 0 8px; font-size: 12px; color: var(--ink-dim);
+  text-transform: uppercase; letter-spacing: .09em;
+}
+.boat-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px; margin-top: 4px;
+}
+#boat-preview { margin: 12px 0 0; color: var(--accent); font-size: 12.5px; }
+
 /* ---------- gallery ---------- */
 
 .gallery-inner { max-width: 1240px; margin: 0 auto; padding: 32px 20px 80px; }
@@ -416,6 +455,7 @@ button.design-card:hover { border-color: var(--accent); transform: translateY(-2
   body { overflow: visible; }
   .screen.editor { grid-template-columns: 1fr; }
   .intake-grid { grid-template-columns: 1fr; }
+  .boat-grid { grid-template-columns: 1fr 1fr; }
   .font-slot { grid-template-columns: 1fr auto; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); order: 2; }
   .stage { order: 1; padding: 16px; }

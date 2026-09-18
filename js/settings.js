@@ -66,7 +66,7 @@ export const DEFAULTS = {
     width: 1200,
     height: 800,
     exportScale: 2,
-    format: 'png'
+    format: 'jpeg'
   },
 
   photo: {
@@ -81,6 +81,51 @@ export const DEFAULTS = {
     fadeOpacity: 0.92,  // how dark the fade gets at full strength
     fadeLength: 0.66,   // how far across the frame it reaches
     fadeHold: 0.30      // how much of that reach stays solid before falling off
+  },
+
+  // Design 8's navy fade, split spec row and arch. Fractions of the canvas,
+  // converted from the brief's pixel coordinates at 1200x800.
+  arch: {
+    navy: '#0b2346', strength: 1,
+    fadeStart: 0.475, solidAt: 0.85,
+    ruleY: 0.8525, ruleLeftEnd: 0.3983, ruleRightStart: 0.6017,
+    scriptX: 0.05, scriptY: 0.70, scriptWidth: 0.548,
+    headX: 0.6717, headY: 0.6125, headWidth: 0.287,
+    tealRuleY: 0.725, subY: 0.7475,
+    specX: [0.0833, 0.2967, 0.6458, 0.7933], specWidth: 0.175,
+    labelY: 0.885, valueY: 0.932,
+    dividerX: [0.2667, 0.7625], dividerTop: 0.8875, dividerH: 0.06875
+  },
+
+  // Design 1's photo sheet and dry-brush stroke.
+  sheet: {
+    photoBottom: 0.8375,
+    scriptX: 0.025, scriptY: 0.585, scriptWidth: 0.60,
+    headingY: 0.735,
+    specLeft: 0.052, specRight: 0.845,
+    specY: 0.858, specH: 0.125,
+    specWeights: [1.25, 0.8, 0.9, 1.25]
+  },
+  brush: {
+    x: -0.06, y: 0.44, w: 0.86, h: 0.47,
+    color: '#0d2645', opacity: 1
+  },
+
+  // Design 2's water composite. Fractions of the canvas throughout.
+  water: {
+    y: 0.45,           // top edge of the drawn texture
+    scale: 1.0,        // texture width as a fraction of the canvas
+    offsetX: 0,
+    keyWhite: 1,       // how hard to key the texture's white sky away
+    deep: '#06304f',   // solid water under the texture
+    deepStart: 0.55,
+    scrim: '#04223a',  // readability gradient over the water
+    scrimOpacity: 0.56,
+    scrimReach: 0.6,
+    scriptY: 0.672, scriptWidth: 0.68,
+    headingY: 0.818,
+    specLeft: 0.1875, specRight: 0.8125,
+    specY: 0.855, specH: 0.115
   },
 
   // Design 5's angled photo frame. Every value is a fraction of the canvas,
@@ -169,27 +214,27 @@ export const DEFAULTS = {
     // Oversized "JUST SOLD" headline
     display: {
       family: 'Anton', weight: 400, size: 128, tracking: -2,
-      lineHeight: 0.92, transform: 'uppercase', color: '#ffffff', fit: true
+      lineHeight: 0.92, transform: 'uppercase', color: '#ffffff', fit: true, rotate: 0, opacity: 1, rotate: 0, opacity: 1, rotate: 0, opacity: 1, rotate: 0, opacity: 1, rotate: 0, opacity: 1
     },
     // Handwritten "Just Sold!" headline
     script: {
       family: 'Great Vibes', weight: 400, size: 118, tracking: 0,
-      lineHeight: 1, transform: 'none', color: '#0f2044', fit: true
+      lineHeight: 1, transform: 'none', color: '#0f2044', fit: true, rotate: 0, opacity: 1
     },
     // The boat itself — year, make, model
     model: {
       family: 'Montserrat', weight: 800, size: 42, tracking: 1,
-      lineHeight: 1.2, transform: 'uppercase', color: '#ffffff', fit: true
+      lineHeight: 1.2, transform: 'uppercase', color: '#ffffff', fit: true, rotate: 0, opacity: 1, rotate: 0, opacity: 1, rotate: 0, opacity: 1, rotate: 0, opacity: 1, rotate: 0, opacity: 1
     },
     // Secondary line; defaults are the site's body face
     tagline: {
       family: 'Montserrat', weight: 500, size: 26, tracking: 3.5,
-      lineHeight: 1.45, transform: 'uppercase', color: '#c9d4e4', fit: true
+      lineHeight: 1.45, transform: 'uppercase', color: '#c9d4e4', fit: true, rotate: 0, opacity: 1
     },
     // Spec strip labels/values on the editorial layout
     spec: {
       family: 'Montserrat', weight: 700, size: 16, tracking: 1.6,
-      lineHeight: 1.5, transform: 'uppercase', color: '#0f2044', fit: true
+      lineHeight: 1.5, transform: 'uppercase', color: '#0f2044', fit: true, rotate: 0, opacity: 1
     }
   },
 
@@ -262,7 +307,9 @@ function typeGroup(id, title, path, kind, opts = {}) {
     { key: `${path}.tracking`, label: 'Letter spacing', type: 'range', box: true, min: -8, max: 24, step: 0.1, unit: 'px' },
     { key: `${path}.lineHeight`, label: 'Line height', type: 'range', box: true, min: 0.7, max: 2.2, step: 0.01, unit: '×' },
     { key: `${path}.color`, label: 'Colour', type: 'color' },
-    { key: `${path}.fit`, label: 'Shrink to fit column', type: 'checkbox' }
+    { key: `${path}.fit`, label: 'Shrink to fit column', type: 'checkbox' },
+    { key: `${path}.rotate`, label: 'Rotation', type: 'range', min: -30, max: 30, step: 0.5, unit: '\u00b0' },
+    { key: `${path}.opacity`, label: 'Opacity', type: 'range', min: 0.05, max: 1, step: 0.01 }
   ];
   if (role !== 'spec') {
     f.push(
@@ -288,7 +335,10 @@ export const SCHEMA = [
       { key: 'canvas.exportScale', label: 'Export scale', type: 'select', numeric: true,
         options: [{ value: 1, label: '1× (design size)' }, { value: 2, label: '2× (retina)' }, { value: 3, label: '3× (print-ish)' }] },
       { key: 'canvas.format', label: 'File format', type: 'select',
-        options: [{ value: 'png', label: 'PNG — sharpest text' }, { value: 'jpeg', label: 'JPEG — smaller file' }] }
+        options: [
+          { value: 'jpeg', label: 'JPG — smaller file' },
+          { value: 'png', label: 'PNG — sharpest text' }
+        ] }
     ]
   },
   {
@@ -387,9 +437,9 @@ export const SCHEMA = [
     id: 'content', tab: 'text', title: 'Text content',
     fields: [
       { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
-      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-4', 'design-5', 'diagonal-split', 'full-bleed'] },
+      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-1', 'design-2', 'design-4', 'design-5', 'design-8', 'diagonal-split', 'full-bleed'] },
       { key: 'text.model', label: 'Boat / model', type: 'textarea', rows: 2 },
-      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
+      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'design-8', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
     ]
   },
   {
@@ -403,10 +453,94 @@ export const SCHEMA = [
     ]
   },
   typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 500, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-4', 'design-5', 'diagonal-split', 'full-bleed'] }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-1', 'design-2', 'design-4', 'design-5', 'design-8', 'diagonal-split', 'full-bleed'] }),
   typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5'], familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5', 'design-2', 'design-1', 'design-8'], familyWhen: st => !st.siteType.lockSecondary }),
+  {
+    id: 'arch', tab: 'style', title: 'Navy fade & info bar', show: ['design-8'],
+    note: 'The fade follows a fixed curve between its start and the point it turns solid; these move where that happens.',
+    fields: [
+      { key: 'arch.navy', label: 'Navy colour', type: 'color' },
+      { key: 'arch.strength', label: 'Fade strength', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'arch.fadeStart', label: 'Fade starts', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.solidAt', label: 'Solid from', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.ruleY', label: 'Rule height', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'arch.ruleLeftEnd', label: 'Left rule ends', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.ruleRightStart', label: 'Right rule starts', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.dividerTop', label: 'Divider top', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'arch.dividerH', label: 'Divider height', type: 'range', min: 0.01, max: 0.2, step: 0.002 }
+    ]
+  },
+  {
+    id: 'arch-text', tab: 'text', title: 'Design 8 placement', show: ['design-8'],
+    fields: [
+      { key: 'arch.scriptX', label: 'Script left', type: 'range', min: -0.1, max: 0.8, step: 0.002 },
+      { key: 'arch.scriptY', label: 'Script height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.scriptWidth', label: 'Script max width', type: 'range', min: 0.2, max: 1, step: 0.005 },
+      { key: 'arch.headX', label: 'Heading left', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.headY', label: 'Heading top', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.headWidth', label: 'Heading max width', type: 'range', min: 0.1, max: 0.6, step: 0.002 },
+      { key: 'arch.tealRuleY', label: 'Teal rule height', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.subY', label: 'Subtext top', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.labelY', label: 'Spec label height', type: 'range', min: 0.6, max: 1, step: 0.002 },
+      { key: 'arch.valueY', label: 'Spec value height', type: 'range', min: 0.6, max: 1, step: 0.002 },
+      { key: 'arch.specWidth', label: 'Spec column width', type: 'range', min: 0.05, max: 0.4, step: 0.002 }
+    ]
+  },
+  {
+    id: 'brush', tab: 'style', title: 'Dry-brush stroke', show: ['design-1'],
+    note: 'The stroke is a stencil of the brush artwork, recoloured — its texture comes from the file, its colour from your logo.',
+    fields: [
+      { key: 'brush.x', label: 'Brush left', type: 'range', min: -0.4, max: 1, step: 0.002 },
+      { key: 'brush.y', label: 'Brush top', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'brush.w', label: 'Brush width', type: 'range', min: 0.1, max: 1.6, step: 0.002 },
+      { key: 'brush.h', label: 'Brush height', type: 'range', min: 0.05, max: 1, step: 0.002 },
+      { key: 'brush.color', label: 'Brush colour', type: 'color' },
+      { key: 'brush.opacity', label: 'Brush opacity', type: 'range', min: 0, max: 1, step: 0.01 }
+    ]
+  },
+  {
+    id: 'sheet', tab: 'text', title: 'Design 1 placement', show: ['design-1'],
+    fields: [
+      { key: 'sheet.photoBottom', label: 'Photo bottom', type: 'range', min: 0.2, max: 1, step: 0.002 },
+      { key: 'sheet.scriptX', label: 'Script left', type: 'range', min: -0.1, max: 0.8, step: 0.002 },
+      { key: 'sheet.scriptY', label: 'Script height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'sheet.scriptWidth', label: 'Script max width', type: 'range', min: 0.2, max: 1, step: 0.005 },
+      { key: 'sheet.headingY', label: 'Heading height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'sheet.specY', label: 'Spec row top', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'sheet.specH', label: 'Spec row height', type: 'range', min: 0.04, max: 0.4, step: 0.002 },
+      { key: 'sheet.specLeft', label: 'Spec row left', type: 'range', min: 0, max: 0.6, step: 0.002 },
+      { key: 'sheet.specRight', label: 'Spec row right', type: 'range', min: 0.3, max: 1, step: 0.002 }
+    ]
+  },
+  {
+    id: 'water', tab: 'style', title: 'Water layer', show: ['design-2'],
+    note: 'The waterline is the texture\u2019s own edge. Keying removes the white sky stock images ship with, so the wave boundary stays photographic.',
+    fields: [
+      { key: 'water.y', label: 'Water position', type: 'range', min: -0.2, max: 1, step: 0.002 },
+      { key: 'water.scale', label: 'Water width', type: 'range', min: 0.5, max: 2.5, step: 0.005 },
+      { key: 'water.offsetX', label: 'Water offset \u2194', type: 'range', min: -0.5, max: 0.5, step: 0.002 },
+      { key: 'water.keyWhite', label: 'Remove white sky', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'water.deep', label: 'Deep water colour', type: 'color' },
+      { key: 'water.deepStart', label: 'Deep water top', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'water.scrim', label: 'Readability tint', type: 'color' },
+      { key: 'water.scrimOpacity', label: 'Tint strength', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'water.scrimReach', label: 'Tint reach', type: 'range', min: 0.1, max: 1, step: 0.005 }
+    ]
+  },
+  {
+    id: 'layout2', tab: 'text', title: 'Design 2 placement', show: ['design-2'],
+    fields: [
+      { key: 'water.scriptY', label: 'Script height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'water.scriptWidth', label: 'Script max width', type: 'range', min: 0.2, max: 1, step: 0.005 },
+      { key: 'water.headingY', label: 'Heading height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'water.specY', label: 'Spec row top', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'water.specH', label: 'Spec row height', type: 'range', min: 0.04, max: 0.4, step: 0.002 },
+      { key: 'water.specLeft', label: 'Spec row left', type: 'range', min: 0, max: 0.9, step: 0.002 },
+      { key: 'water.specRight', label: 'Spec row right', type: 'range', min: 0.2, max: 1, step: 0.002 }
+    ]
+  },
   {
     id: 'frame', tab: 'style', title: 'Angled photo frame', show: ['design-5'],
     note: 'The photo is clipped to a polygon. Each slider moves one of its vertices, as a fraction of the canvas.',

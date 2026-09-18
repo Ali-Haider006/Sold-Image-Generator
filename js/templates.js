@@ -17,7 +17,8 @@
 ------------------------------------------------------------------- */
 
 import {
-  unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath
+  unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath,
+  keyWhite, stencil
 } from './draw.js';
 import { drawLogo, logoGeometry, pickLogo } from './logo.js';
 
@@ -364,38 +365,253 @@ editorial.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 
 editorial.displayFont = 'Playfair Display';
 
 
+/* ================================================================
+   DESIGN 8 — full-bleed photo, navy fade, teal script, arch badge
+   ================================================================
+   Built to the supplied coordinates at the 1200x800 reference. The navy
+   uses the brief's own opacity table rather than the shared scrim easing,
+   because the curve is specified: transparent to y380, 35% at 470, 70% at
+   560, 92% at 640, solid from 680. The specification row is split two left
+   and two right around the arch, so its columns are explicit x positions
+   rather than a contiguous strip.
+   ================================================================ */
+function design8(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const D = S.arch;
+
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+
+  // Navy fade, then a solid floor beneath it.
+  const top = H * D.fadeStart, solid = H * D.solidAt;
+  const g = ctx.createLinearGradient(0, top, 0, solid);
+  [[0, 0], [0.30, 0.35], [0.60, 0.70], [0.867, 0.92], [1, 1]]
+    .forEach(([stop, a]) => g.addColorStop(stop, rgba(D.navy, a * D.strength)));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, top, W, solid - top);
+  ctx.fillStyle = rgba(D.navy, D.strength);
+  ctx.fillRect(0, solid, W, H - solid);
+
+  // Rules stop short of the arch on both sides.
+  const ry = H * D.ruleY;
+  ctx.fillStyle = rgba(S.brand.light, 0.25);
+  ctx.fillRect(0, ry, W * D.ruleLeftEnd, Math.max(1, k));
+  ctx.fillRect(W * D.ruleRightStart, ry, W - W * D.ruleRightStart, Math.max(1, k));
+
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: W * D.scriptX, y: H * D.scriptY, baseline: 'middle',
+    maxWidth: W * D.scriptWidth, scale: k
+  }, W, H);
+
+  const hx = W * D.headX;
+  const head = block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: hx, y: H * D.headY, maxWidth: W * D.headWidth, scale: k
+  }, W, H);
+
+  if (S.rule.show) {
+    line(ctx, hx, H * D.tealRuleY, S.rule.width * k, S.rule.thickness * k, S.rule.color);
+  }
+
+  block(ctx, S, 'tagline', S.text.tagline, S.type.tagline, {
+    x: hx, y: H * D.subY, maxWidth: W * D.headWidth, scale: k
+  }, W, H);
+
+  // Two columns left of the arch, two right of it.
+  const specs = (S.text.specs || []).filter(sp => sp.label || sp.value);
+  const valueSpec = {
+    ...S.type.spec, weight: 400, transform: 'none',
+    tracking: 0, size: S.type.spec.size * 0.95, color: S.brand.accent
+  };
+  specs.slice(0, D.specX.length).forEach((sp, i) => {
+    const x = W * D.specX[i];
+    const lim = W * D.specWidth;
+    drawBlock(ctx, sp.label, S.type.spec,
+      { x, y: H * D.labelY, scale: k, maxWidth: lim });
+    drawBlock(ctx, sp.value, valueSpec,
+      { x, y: H * D.valueY, scale: k, maxWidth: lim });
+  });
+
+  ctx.fillStyle = rgba(S.brand.light, 0.35);
+  for (const dx of D.dividerX) {
+    ctx.fillRect(W * dx, H * D.dividerTop, Math.max(1, k), H * D.dividerH);
+  }
+
+  drawLogo(ctx, S, W, H, A);
+}
+design8.defaults = { position: 'custom', wrapper: { shape: 'arch', bleed: 'none' } };
+design8.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'dark' };
+design8.displayFont = 'Montserrat';
+
+/* ================================================================
+   DESIGN 1 — photo sheet, navy dry-brush, script, spec row on white
+   ================================================================
+   White ground, the photograph filling the upper band, an irregular
+   dry-brush stroke across the lower left carrying the script and the
+   heading, the badge on the white to its right, and the specification row
+   on clean white beneath. The brush is a stencil of the supplied artwork
+   recoloured to the extracted brand navy, so the stroke is never a
+   rectangle and never the source file's own navy.
+   ================================================================ */
+function design1(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const tall = isTall(W, H);
+  const F = S.sheet;
+
+  ctx.fillStyle = S.brand.light;
+  ctx.fillRect(0, 0, W, H);
+
+  const photoH = H * (tall ? F.photoBottom * 0.85 : F.photoBottom);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, photoH);
+  ctx.clip();
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, photoH);
+  else placeholder(ctx, S, 0, 0, W, photoH);
+  ctx.restore();
+
+  if (A.brush) {
+    const st = stencil(A.brush, S.brush.color);
+    if (st) {
+      ctx.save();
+      ctx.globalAlpha = S.brush.opacity;
+      // Stretched rather than aspect-fitted: a brush stroke is texture, and
+      // the box it has to fill is set by the composition, not by the file.
+      ctx.drawImage(st, W * S.brush.x, H * S.brush.y, W * S.brush.w, H * S.brush.h);
+      ctx.restore();
+    }
+  }
+
+  const brushMidX = (S.brush.x + S.brush.w / 2) * W;
+
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: W * F.scriptX, y: H * F.scriptY, baseline: 'middle',
+    maxWidth: W * F.scriptWidth, scale: k
+  }, W, H);
+
+  block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: brushMidX, y: H * F.headingY, align: 'center', baseline: 'middle',
+    maxWidth: W * S.brush.w * 0.86, scale: k
+  }, W, H);
+
+  drawLogo(ctx, S, W, H, A);
+
+  const sy = H * F.specY;
+  specStrip(ctx, S, k, {
+    x: W * F.specLeft, y: sy,
+    w: W * (F.specRight - F.specLeft), h: H * F.specH,
+    align: 'left', weights: F.specWeights, pad: W * 0.004,
+    dividerH: 0.62,
+    labelColor: S.type.spec.color,
+    valueColor: S.brand.accent,
+    dividerColor: rgba(S.brand.primary, 0.35)
+  });
+}
+design1.defaults = { position: 'custom', wrapper: { shape: 'none', bleed: 'none' } };
+design1.surfaces = { display: 'light', script: 'dark', model: 'dark', tagline: 'light', spec: 'light' };
+design1.displayFont = 'Montserrat';
+
+/* ================================================================
+   DESIGN 2 — boat photo half-submerged, script over the water
+   ================================================================
+   Layered exactly as the brief describes, bottom to top:
+     boat photo -> deep-water fill -> water texture -> readability
+     gradient -> script -> boat heading -> spec row
+   The waterline is the texture's own photographic edge, not a drawn
+   shape, which is why the white sky in the source has to be keyed out
+   rather than cropped off at a straight line.
+   ================================================================ */
+function design2(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const Wa = S.water;
+
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+
+  // Deep water beneath the texture, so a short texture can never leave a gap
+  // between the surface and the bottom of the canvas.
+  const deepY = H * Wa.deepStart;
+  ctx.fillStyle = Wa.deep;
+  ctx.fillRect(0, deepY, W, H - deepY);
+
+  if (A.water) {
+    const keyed = keyWhite(A.water, Wa.keyWhite);
+    if (keyed) {
+      const dw = W * Wa.scale;
+      const dh = dw * (keyed.height / keyed.width);
+      ctx.drawImage(keyed, (W - dw) / 2 + W * Wa.offsetX, H * Wa.y, dw, dh);
+    }
+  }
+
+  // Readability gradient — the type sits on this, not on the raw texture.
+  scrim(ctx, 0, 0, W, H, Wa.scrim, Wa.scrimOpacity, 'bottom', Wa.scrimReach, 0.12);
+
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: W * 0.5, y: H * Wa.scriptY, align: 'center', baseline: 'middle',
+    maxWidth: W * Wa.scriptWidth, scale: k
+  }, W, H);
+
+  block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: W * 0.5, y: H * Wa.headingY, align: 'center', baseline: 'middle',
+    maxWidth: W * 0.84, scale: k
+  }, W, H);
+
+  const sx = W * Wa.specLeft;
+  const sw = W * (Wa.specRight - Wa.specLeft);
+  specStrip(ctx, S, k, {
+    x: sx, y: H * Wa.specY, w: sw, h: H * Wa.specH,
+    labelColor: S.type.spec.color,
+    valueColor: rgba(S.type.spec.color, 0.72),
+    dividerColor: rgba(S.brand.light, 0.35)
+  });
+
+  drawLogo(ctx, S, W, H, A);
+}
+design2.defaults = { position: 'top-right', wrapper: { shape: 'circle', bleed: 'none' } };
+design2.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'dark' };
+design2.displayFont = 'Montserrat';
+
 /**
  * Four label/value columns with hairline dividers.
  *
  * Shared by the editorial layout, which sets it on white, and design 5,
  * which sets it on the navy ground — hence the explicit colours.
  */
-function specStrip(ctx, S, k, { x, y, w, h, labelColor, valueColor, dividerColor }) {
+function specStrip(ctx, S, k, opts) {
+  const {
+    x, y, w, h, labelColor, valueColor, dividerColor,
+    align = 'center', weights = null, pad = 0, dividerH = 0.48
+  } = opts;
   const specs = (S.text.specs || []).filter(sp => sp.label || sp.value);
   if (!specs.length) return;
 
-  const cellW = w / specs.length;
-  const labelSpec = { ...S.type.spec, size: S.type.spec.size, color: labelColor };
+  // Columns may be uneven: "HORSEPOWER" needs far more room than "YEAR", and
+  // equal columns leave the short ones marooned in white space.
+  const ws = (weights && weights.length === specs.length)
+    ? weights
+    : specs.map(() => 1);
+  const total = ws.reduce((a, b) => a + b, 0);
+
+  const labelSpec = { ...S.type.spec, color: labelColor };
   const valueSpec = {
     ...S.type.spec, weight: 400, transform: 'none',
     tracking: Math.min(S.type.spec.tracking, 0.4),
     size: S.type.spec.size * 1.02, color: valueColor
   };
 
+  let cx = x;
   specs.forEach((sp, i) => {
-    const cx = x + cellW * i;
+    const cellW = w * (ws[i] / total);
     if (i > 0) {
       ctx.fillStyle = dividerColor;
-      ctx.fillRect(cx, y + h * 0.26, 1, h * 0.48);
+      ctx.fillRect(cx, y + h * (0.5 - dividerH / 2), 1, h * dividerH);
     }
-    drawBlock(ctx, sp.label, labelSpec, {
-      x: cx + cellW / 2, y: y + h * 0.36, baseline: 'middle',
-      align: 'center', scale: k, maxWidth: cellW * 0.88
-    });
-    drawBlock(ctx, sp.value, valueSpec, {
-      x: cx + cellW / 2, y: y + h * 0.68, baseline: 'middle',
-      align: 'center', scale: k, maxWidth: cellW * 0.88
-    });
+    const tx = align === 'left' ? cx + pad : cx + cellW / 2;
+    const maxW = align === 'left' ? cellW - pad * 1.5 : cellW * 0.88;
+    drawBlock(ctx, sp.label, labelSpec,
+      { x: tx, y: y + h * 0.36, baseline: 'middle', align, scale: k, maxWidth: maxW });
+    drawBlock(ctx, sp.value, valueSpec,
+      { x: tx, y: y + h * 0.68, baseline: 'middle', align, scale: k, maxWidth: maxW });
+    cx += cellW;
   });
 }
 
@@ -638,6 +854,9 @@ design4.surfaces = { display: 'light', script: 'light', model: 'light', tagline:
 design4.displayFont = 'Montserrat';
 
 export const RENDERERS = {
+  'design-1': design1,
+  'design-8': design8,
+  'design-2': design2,
   'design-3': design3,
   'design-5': design5,
   'design-4': design4,

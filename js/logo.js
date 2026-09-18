@@ -5,7 +5,9 @@
    handler needs to know where the logo *is* without drawing anything.
 ------------------------------------------------------------------- */
 
-import { unit, contain, knockout, roundRectPath, shieldPath, circlePath, rgba } from './draw.js';
+import {
+  unit, contain, knockout, roundRectPath, shieldPath, circlePath, archPath, rgba
+} from './draw.js';
 
 const ANCHORS = {
   'top-left': [0, 0], 'top-center': [0.5, 0], 'top-right': [1, 0],
@@ -42,6 +44,7 @@ export function logoGeometry(S, W, H, img) {
     case 'rounded': ww = wh = square; break;
     case 'pill':    ww = artW + pad * 2.6; wh = artH + pad * 1.6; radius = wh / 2; break;
     case 'shield':  ww = Math.max(artW, artH * 0.8) + pad * 2; wh = ww * 1.22; break;
+    case 'arch':    ww = square; wh = ww * 0.91; break;
     case 'banner':  ww = W; wh = artH + pad * 2; radius = 0; break;
     default:        ww = artW; wh = artH;
   }
@@ -70,8 +73,11 @@ export function logoGeometry(S, W, H, img) {
     }
   }
 
-  // The shield tapers, so nudge the artwork up into its fat half.
-  const artCy = shape === 'shield' ? cy - wh * 0.08 : cy;
+  // The shield tapers and the arch is open at the foot, so both want the
+  // artwork nudged up out of the dead half.
+  const artCy = shape === 'shield' ? cy - wh * 0.08
+    : shape === 'arch' ? cy - wh * 0.06
+    : cy;
 
   return {
     shape, radius,
@@ -105,25 +111,31 @@ export function drawLogo(ctx, S, W, H, A) {
   ctx.save();
   ctx.globalAlpha = S.logo.opacity;
 
-  if (shape !== 'none' && Wr.opacity > 0) {
-    ctx.save();
-    if (Wr.shadow > 0) {
-      ctx.shadowColor = rgba('#000000', Wr.shadow * 0.55);
-      ctx.shadowBlur = 34 * k;
-      ctx.shadowOffsetY = 10 * k;
-    }
-    if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2);
-    else if (shape === 'shield') shieldPath(ctx, box.x, box.y, box.w, box.h, radius);
-    else roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
-
-    ctx.fillStyle = rgba(Wr.fill, Wr.opacity);
-    ctx.fill();
-    ctx.restore();
-
-    if (Wr.borderWidth > 0) {
-      if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2 - Wr.borderWidth * k / 2);
+  if (shape !== 'none') {
+    const path = () => {
+      if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2);
       else if (shape === 'shield') shieldPath(ctx, box.x, box.y, box.w, box.h, radius);
+      else if (shape === 'arch') archPath(ctx, box.x, box.y, box.w, box.h);
       else roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
+    };
+
+    if (Wr.opacity > 0) {
+      ctx.save();
+      if (Wr.shadow > 0) {
+        ctx.shadowColor = rgba('#000000', Wr.shadow * 0.55);
+        ctx.shadowBlur = 34 * k;
+        ctx.shadowOffsetY = 10 * k;
+      }
+      path();
+      ctx.fillStyle = rgba(Wr.fill, Wr.opacity);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Stroked independently of the fill: an outline-only badge is a real
+    // thing to want, and it used to vanish whenever the fill was transparent.
+    if (Wr.borderWidth > 0) {
+      path();
       ctx.strokeStyle = Wr.borderColor;
       ctx.lineWidth = Wr.borderWidth * k;
       ctx.stroke();

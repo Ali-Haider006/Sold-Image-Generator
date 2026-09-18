@@ -31,6 +31,17 @@ export function parseHex(h) {
 /** Relative luminance, 0 (black) .. 1 (white). */
 export const luminance = ({ r, g, b }) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 
+/**
+ * Chroma: how far a colour is from grey, 0 .. 1.
+ *
+ * HSL saturation is the wrong yardstick for deciding whether something is a
+ * brand colour, because it rises as a colour gets darker — a near-black navy
+ * scores 0.385, higher than plenty of obvious greys. Chroma does not have
+ * that bias, so it can actually separate a teal from a blue-grey blend.
+ */
+export const chroma = ({ r, g, b }) =>
+  (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+
 /** HSL saturation, 0 (grey) .. 1 (pure hue). */
 export function saturation({ r, g, b }) {
   const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255;
@@ -126,7 +137,8 @@ export function extractPalette(image) {
     // and pure-black extremes that carry no brand identity of their own.
     const extremity = lum > 0.94 ? 0.12 : lum < 0.05 ? 0.3 : 1;
     return {
-      hex: hex(c), r: c.r, g: c.g, b: c.b, share, sat, lum, hue: hue(c),
+      hex: hex(c), r: c.r, g: c.g, b: c.b, share, sat, lum,
+      chroma: chroma(c), hue: hue(c),
       score: share * extremity * (0.45 + sat * 1.35)
     };
   }).sort((a, b) => b.score - a.score).slice(0, 10);
@@ -151,7 +163,14 @@ function deriveRoles(swatches) {
   // Secondary: the accent colour. Favour saturation and coverage, and
   // heavily discount anything sitting right next to the primary — otherwise
   // a navy logo hands back a second, slightly different navy.
-  const secondary = pool.slice(1)
+  //
+  // A candidate must also be a real colour. Plenty of dealer logos are one
+  // navy on transparency, and the runner-up there is the paper white or a
+  // grey edge blend: handing that back as the brand accent paints rules and
+  // script in near-white, which reads as the accent having vanished.
+  const usable = pool.slice(1).filter(s =>
+    s.chroma > 0.18 && s.lum > 0.12 && s.lum < 0.88);
+  const secondary = usable
     .map(s => ({
       s,
       w: s.sat * (0.35 + Math.sqrt(s.share)) * (dist(s, primary) > 70 ? 1 : 0.2)
@@ -166,6 +185,9 @@ function deriveRoles(swatches) {
     secondary: secondary ? secondary.hex : tint(primary.hex, 0.45),
     dark: dark.lum < 0.3 ? dark.hex : shade(primary.hex, 0.45),
     light: light.lum > 0.8 ? light.hex : '#ffffff',
-    accent: tint(primary.hex, 0.6)
+    accent: tint(primary.hex, 0.6),
+    // No second brand colour exists in this logo. Designs use this to keep
+    // their own specified accent rather than take an invented one.
+    monochrome: !secondary
   };
 }

@@ -162,8 +162,12 @@ const DESIGN_5 = {
     // reversed file, or a white knockout when none has been supplied.
     variant: 'reversed', knockout: true, knockoutColor: '#ffffff',
     position: 'custom', customX: 0.89, customY: 0.60,
-    size: 162, padding: 0,
-    wrapper: { shape: 'none', opacity: 0, shadow: 0, diameter: 0, bleed: 'none' }
+    size: 162, padding: 26,
+    wrapper: {
+      shape: 'none', fill: '#ffffff', opacity: 1, radius: 28,
+      borderWidth: 0, borderColor: '#12244d', shadow: 0.1,
+      diameter: 0, bleed: 'none', bleedAmount: 0.3
+    }
   },
   rule: { show: false },
   frame: {
@@ -179,7 +183,201 @@ const DESIGN_5 = {
   photo: { zoom: 1.04, offsetX: 0, offsetY: 0 }
 };
 
+/* Design 8, from the supplied coordinates at 1200x800. */
+const DESIGN_8 = {
+  template: 'design-8',
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'jpeg' },
+  type: {
+    script: {
+      // Mixed case, exactly as typed — this design does not shout.
+      family: 'Breathing', weight: 400, size: 210, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#35a8ad',
+      fit: true, rotate: -4, opacity: 1
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 37, tracking: -0.5,
+      lineHeight: 1.08, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    tagline: {
+      family: 'Montserrat', weight: 400, size: 17, tracking: 3.4,
+      lineHeight: 1.41, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 20, tracking: 0.4,
+      lineHeight: 1.4, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX\n268 COMMANDER',
+    tagline: 'CONGRATULATIONS\nTO THE NEW OWNER!'
+  },
+  logo: {
+    variant: 'main', knockout: false,
+    position: 'custom', customX: 0.5, customY: 0.911,
+    size: 100, padding: 28,
+    wrapper: {
+      shape: 'arch', fill: '#ffffff', opacity: 1, radius: 0,
+      borderWidth: 0, borderColor: '#0b2346', shadow: 0,
+      diameter: 156, bleed: 'none', bleedAmount: 0.3
+    }
+  },
+  rule: { show: true, color: '#35a8ad', width: 224, thickness: 3 },
+  brand: { accent: '#c5cfdc', light: '#ffffff' },
+  arch: {
+    navy: '#0b2346', strength: 1,
+    fadeStart: 0.475, solidAt: 0.85,
+    ruleY: 0.8525, ruleLeftEnd: 0.3983, ruleRightStart: 0.6017,
+    scriptX: 0.05, scriptY: 0.70, scriptWidth: 0.548,
+    headX: 0.6717, headY: 0.6125, headWidth: 0.287,
+    tealRuleY: 0.725, subY: 0.7475,
+    specX: [0.0833, 0.2967, 0.6458, 0.7933], specWidth: 0.175,
+    labelY: 0.885, valueY: 0.932,
+    dividerX: [0.2667, 0.7625], dividerTop: 0.8875, dividerH: 0.06875
+  },
+  // The brief asks for a light colour boost on by default.
+  photo: { zoom: 1.0, offsetX: 0, offsetY: 0, saturate: 1.15, contrast: 1.05 }
+};
+
+/* Design 1, measured off the reference at 1200x800. */
+const DESIGN_1 = {
+  template: 'design-1',
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'jpeg' },
+  type: {
+    script: {
+      family: 'Amertsadam Four', weight: 400, size: 172, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 26, tracking: 1.5,
+      lineHeight: 1.2, transform: 'uppercase', color: '#c2ccd9',
+      fit: true, rotate: 0, opacity: 1
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 19, tracking: 0.6,
+      lineHeight: 1.5, transform: 'uppercase', color: '#0d2645',
+      fit: true, rotate: 0, opacity: 1
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX 268 COMMANDER'
+  },
+  logo: {
+    variant: 'main', knockout: false,
+    position: 'custom', customX: 0.839, customY: 0.681,
+    size: 195, padding: 26,
+    wrapper: {
+      shape: 'none', fill: '#ffffff', opacity: 1, radius: 28,
+      borderWidth: 0, borderColor: '#0d2645', shadow: 0.1,
+      diameter: 0, bleed: 'none', bleedAmount: 0.3
+    }
+  },
+  rule: { show: false },
+  brand: { accent: '#7d8a9c' },
+  sheet: {
+    photoBottom: 0.8375,
+    scriptX: 0.025, scriptY: 0.585, scriptWidth: 0.60,
+    headingY: 0.735,
+    specLeft: 0.052, specRight: 0.845,
+    specY: 0.858, specH: 0.125,
+    specWeights: [1.25, 0.8, 0.9, 1.25]
+  },
+  brush: { x: -0.06, y: 0.44, w: 0.86, h: 0.47, color: '#0d2645', opacity: 1 },
+  photo: { zoom: 1.0, offsetX: 0, offsetY: 0 }
+};
+
+/* Design 2, measured off the reference at 1200x800. */
+const DESIGN_2 = {
+  template: 'design-2',
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'jpeg' },
+  type: {
+    script: {
+      family: 'Breathing', weight: 400, size: 158, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 30, tracking: 1.1,
+      lineHeight: 1.2, transform: 'uppercase', color: '#e65a0a',
+      fit: true, rotate: 0, opacity: 1
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 19, tracking: 1.4,
+      lineHeight: 1.5, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX 268 COMMANDER'
+  },
+  logo: {
+    variant: 'main', knockout: false,
+    position: 'top-right', size: 118, offsetX: 60, offsetY: 8, padding: 16,
+    wrapper: {
+      shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0.1,
+      diameter: 150, bleed: 'none', bleedAmount: 0.3
+    }
+  },
+  rule: { show: false },
+  water: {
+    y: 0.45, scale: 1.0, offsetX: 0, keyWhite: 1,
+    deep: '#06304f', deepStart: 0.55,
+    scrim: '#04223a', scrimOpacity: 0.56, scrimReach: 0.6,
+    scriptY: 0.672, scriptWidth: 0.68,
+    headingY: 0.818,
+    specLeft: 0.1875, specRight: 0.8125,
+    specY: 0.855, specH: 0.115
+  },
+  photo: { zoom: 1.0, offsetX: 0, offsetY: -0.06 }
+};
+
 export const DESIGNS = [
+  {
+    id: 'design-1', slot: 1, name: 'Brush Sheet', status: 'ready',
+    blurb: 'Photo sheet, navy dry-brush stroke, script, spec row on white.',
+    preset: DESIGN_1,
+    /** The heading sits on one line inside the brush. */
+    modelTransform: t => t.replace(/\s*\n+\s*/g, ' '),
+    /**
+     * Brush and spec labels take the logo's major colour, which is what the
+     * brief means by deriving the navy from the logo rather than picking one.
+     * The script stays white — it has to read against that brush.
+     */
+    paletteMap(S, r) {
+      S.brand.primary = r.primary;
+      S.brand.light = '#ffffff';
+      S.brand.accent = tint(r.primary, 0.52);
+      S.brush.color = r.primary;
+      S.type.script.color = '#ffffff';
+      S.type.model.color = tint(r.primary, 0.74);
+      S.type.spec.color = r.primary;
+    }
+  },
+  {
+    id: 'design-2', slot: 2, name: 'Waterline', status: 'ready',
+    blurb: 'Boat half-submerged, script over the water, orange heading, spec row.',
+    preset: DESIGN_2,
+    /** The heading is one line here, not stacked. */
+    modelTransform: t => t.replace(/\s*\n+\s*/g, ' '),
+    /**
+     * Only the badge and the deep water follow the logo. The script stays
+     * white and the heading stays orange — the brief pins both, and a palette
+     * that overrode them would stop reproducing the reference.
+     */
+    paletteMap(S, r) {
+      S.brand.dark = r.primary;
+      S.brand.light = r.light;
+      S.logo.wrapper.fill = r.light;
+      S.type.script.color = r.light;
+      S.type.spec.color = r.light;
+    }
+  },
   {
     id: 'design-3', slot: 3, name: 'Bold Fade', status: 'ready',
     blurb: 'Oversized JUST SOLD over a brand-coloured fade, badge bottom right.',
@@ -191,8 +389,7 @@ export const DESIGNS = [
       S.type.display.color = r.light;
       S.type.model.color = r.light;
       S.type.tagline.color = tint(r.primary, 0.72);
-      S.rule.color = r.secondary;
-      S.ruleB.color = r.secondary;
+      if (!r.monochrome) { S.rule.color = r.secondary; S.ruleB.color = r.secondary; }
       S.logo.wrapper.fill = r.light;
     }
   },
@@ -208,7 +405,7 @@ export const DESIGNS = [
       S.type.tagline.color = '#8b939e';      // spec pins the tagline to grey
       S.divider.color = r.primary;
       S.divider.color2 = tint(r.primary, 0.78);
-      S.rule.color = r.secondary;
+      if (!r.monochrome) S.rule.color = r.secondary;
       S.logo.wrapper.fill = r.light;
     }
   },
@@ -230,8 +427,8 @@ export const DESIGNS = [
     }
   },
   {
-    id: 'full-bleed', slot: null, name: 'Full Bleed', status: 'ready',
-    blurb: 'Photo edge to edge, solid corner tag, solid footer bar. Not yet numbered.',
+    id: 'full-bleed', slot: 6, name: 'Full Bleed', status: 'ready',
+    blurb: 'Photo edge to edge, solid corner tag, solid footer bar.',
     preset: FULL_BLEED,
     /** Both panels and the type take the logo's major colour. */
     paletteMap(S, r) {
@@ -246,8 +443,31 @@ export const DESIGNS = [
     }
   },
   {
-    id: 'draft-editorial', slot: null, name: 'Editorial', status: 'draft',
-    blurb: 'Not yet numbered or spec’d — serif column with a spec strip.',
+    id: 'design-8', slot: 8, name: 'Dealership Arch', status: 'ready',
+    blurb: 'Full-bleed photo, navy fade, teal script, arch badge over a split spec bar.',
+    preset: DESIGN_8,
+    /**
+     * Teal and navy follow the logo; the spec values keep their light grey.
+     * The script is the accent here, so it takes the secondary rather than
+     * the primary — on a navy fade the primary would disappear.
+     */
+    paletteMap(S, r) {
+      S.brand.light = r.light;
+      S.brand.accent = tint(r.primary, 0.78);
+      S.arch.navy = r.primary;
+      if (!r.monochrome) {
+        S.type.script.color = r.secondary;
+        S.rule.color = r.secondary;
+      }
+      S.type.model.color = r.light;
+      S.type.tagline.color = r.light;
+      S.type.spec.color = r.light;
+      S.logo.wrapper.fill = r.light;
+    }
+  },
+  {
+    id: 'draft-editorial', slot: 7, name: 'Editorial', status: 'draft',
+    blurb: 'Numbered, but still on its first-pass layout — send the reference and type spec to finish it.',
     preset: { template: 'editorial' },
     paletteMap: null
   }
@@ -256,8 +476,16 @@ export const DESIGNS = [
 export const DESIGN_SLOTS = 8;
 export const byId = id => DESIGNS.find(d => d.id === id);
 
-/** The numbered slots still waiting on a specification. */
-export const pendingSlots = () => {
+/** Gallery order follows the slot numbers; anything unnumbered trails them. */
+export const inSlotOrder = () =>
+  [...DESIGNS].sort((a, b) => (a.slot || 99) - (b.slot || 99));
+
+/** Slot numbers with no design assigned to them at all. */
+export const emptySlots = () => {
   const taken = new Set(DESIGNS.map(d => d.slot).filter(Boolean));
   return Array.from({ length: DESIGN_SLOTS }, (_, i) => i + 1).filter(n => !taken.has(n));
 };
+
+/** Numbered, but the layout is still a first pass rather than a spec. */
+export const draftSlots = () =>
+  DESIGNS.filter(d => d.slot && d.status !== 'ready').map(d => d.slot).sort((a, b) => a - b);

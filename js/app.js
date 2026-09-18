@@ -11,7 +11,7 @@
 ------------------------------------------------------------------- */
 
 import { DEFAULTS, CANVAS_PRESETS, clone, merge } from './settings.js';
-import { DESIGNS, DESIGN_SLOTS, byId, pendingSlots } from './designs.js';
+import { DESIGNS, DESIGN_SLOTS, byId, inSlotOrder, emptySlots, draftSlots } from './designs.js';
 import { Panel, buildSpecEditor, buildTabs } from './ui.js';
 import { renderDesign, RENDERERS, textHitBoxes } from './templates.js';
 import { logoGeometry } from './logo.js';
@@ -23,8 +23,16 @@ import {
 
 const $ = sel => document.querySelector(sel);
 const LS = {
-  logo: 'sig.logo.v2', logoAlt: 'sig.logoalt.v1', model: 'sig.model.v2',
-  settings: 'sig.designs.v3', fonts: 'sig.fonts.v2'
+  logo: 'sig.logo.v2', logoAlt: 'sig.logoalt.v1', boat: 'sig.boat.v1',
+  water: 'sig.water.v1', brush: 'sig.brush.v1',
+  settings: 'sig.designs.v4', fonts: 'sig.fonts.v2'
+};
+
+/** The boat, entered once and composed into every design. */
+const BOAT_FIELDS = ['year', 'make', 'model', 'display', 'length', 'hp'];
+const DEFAULT_BOAT = {
+  year: '2026', make: 'SEA FOX', model: '268 COMMANDER',
+  display: '268 Commander', length: '26.0 ft', hp: '400hp'
 };
 
 const loadJSON = key => {
@@ -36,9 +44,9 @@ const saveJSON = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)
 
 const state = {
   screen: 'intake',
-  assets: { boat: null, logo: null, logoAlt: null },
+  assets: { boat: null, logo: null, logoAlt: null, water: null, brush: null },
   palette: null,
-  model: '',
+  boat: { ...DEFAULT_BOAT },
   settings: {},          // design id -> settings
   active: null,          // design id open in the editor
   logoCustomized: {},    // design id -> bool
@@ -63,14 +71,39 @@ const persist = () => saveJSON(LS.settings, state.settings);
 
 /* ---------- shared values pushed into every design ---------- */
 
+/** "2026 SEA FOX" / "268 COMMANDER" — stacked, since most designs set it so. */
+function headingText() {
+  const b = state.boat;
+  const top = [b.year, b.make].filter(Boolean).join(' ').trim();
+  const bottom = (b.model || '').trim();
+  return [top, bottom].filter(Boolean).join('\n');
+}
+
+function specRows() {
+  const b = state.boat;
+  return [
+    { label: 'Model', value: b.display || b.model || '' },
+    { label: 'Year', value: b.year || '' },
+    { label: 'Length', value: b.length || '' },
+    { label: 'Horsepower', value: b.hp || '' }
+  ];
+}
+
+/**
+ * Push the boat record into every design. A design may want the heading
+ * shaped differently — designs 2 and 5 set it on one line where the others
+ * stack it — so each gets its own transform.
+ */
 function applyModelToAll() {
-  const text = state.model.trim();
-  if (!text) return;
-  // A design may want the shared name shaped differently — design 5 sets it
-  // on one line where the others stack it.
+  const heading = headingText();
+  const rows = specRows();
   for (const d of DESIGNS) {
-    state.settings[d.id].text.model = d.modelTransform ? d.modelTransform(text) : text;
+    const S_ = state.settings[d.id];
+    if (heading) S_.text.model = d.modelTransform ? d.modelTransform(heading) : heading;
+    S_.text.specs = clone(rows);
   }
+  const preview = $('#boat-preview');
+  if (preview) preview.textContent = heading ? heading.replace('\n', ' ') : '';
 }
 
 /**
@@ -99,7 +132,7 @@ function genericPalette(S, d, r) {
   S.type.model.color = ink('model');
   S.type.tagline.color = surf.tagline === 'light' ? r.accent : r.accent;
   S.type.spec.color = r.primary;
-  S.rule.color = r.secondary;
+  if (!r.monochrome) S.rule.color = r.secondary;
   S.logo.wrapper.fill = r.light;
   S.photo.overlay = r.dark;
 }
@@ -159,15 +192,12 @@ function drawThumb(canvas, img) {
 async function setBoat(file) {
   if (!file?.type.startsWith('image/')) return toast('Pick an image file for the boat photo.');
   try {
-    const { img } = await fileToImage(file);
+    const { img, dataURL } = await fileToImage(file);
     state.assets.boat = img;
+    saveJSON(LS.boatImg, dataURL);
     $('#boat-drop').classList.add('filled');
     $('#boat-name').textContent = file.name;
     drawThumb($('#boat-thumb'), img);
-    if (!state.model) {
-      const guess = guessModel(file.name);
-      if (guess) { state.model = guess; $('#intake-model').value = guess; applyModelToAll(); }
-    }
     gateIntake();
   } catch { toast('That file could not be read as an image.'); }
 }
@@ -186,6 +216,34 @@ async function setLogo(file) {
   } catch { toast('That file could not be read as an image.'); }
 }
 
+async function setWater(file) {
+  if (!file?.type.startsWith('image/')) return toast('Pick an image file for the water texture.');
+  try {
+    const { img, dataURL } = await fileToImage(file);
+    state.assets.water = img;
+    saveJSON(LS.water, dataURL);
+    $('#water-drop').classList.add('filled');
+    $('#water-name').textContent = file.name;
+    drawThumb($('#water-thumb'), img);
+    scheduleRender();
+    toast('Water texture replaced.');
+  } catch { toast('That file could not be read as an image.'); }
+}
+
+async function setBrush(file) {
+  if (!file?.type.startsWith('image/')) return toast('Pick an image file for the brush.');
+  try {
+    const { img, dataURL } = await fileToImage(file);
+    state.assets.brush = img;
+    saveJSON(LS.brush, dataURL);
+    $('#brush-drop').classList.add('filled');
+    $('#brush-name').textContent = file.name;
+    drawThumb($('#brush-thumb'), img);
+    scheduleRender();
+    toast('Brush artwork replaced.');
+  } catch { toast('That file could not be read as an image.'); }
+}
+
 async function setLogoAlt(file) {
   if (!file?.type.startsWith('image/')) return toast('Pick an image file for the reversed logo.');
   try {
@@ -198,18 +256,6 @@ async function setLogoAlt(file) {
     scheduleRender();
     toast('Reversed logo added.');
   } catch { toast('That file could not be read as an image.'); }
-}
-
-/** "2026-sea-fox-268-commander.jpg" -> "2026 SEA FOX\n268 COMMANDER". */
-function guessModel(name) {
-  const base = name.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').trim();
-  const m = base.match(/^(19|20)\d{2}\b/);
-  if (!m) return '';
-  const words = base.slice(m[0].length).trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return '';
-  const head = [m[0], ...words.slice(0, 2)].join(' ');
-  const tail = words.slice(2).join(' ');
-  return (tail ? `${head}\n${tail}` : head).toUpperCase();
 }
 
 function gateIntake() {
@@ -257,6 +303,8 @@ function paintRoles(host) {
   if (!host || !state.palette) return;
   host.innerHTML = '';
   for (const [name, hexv] of Object.entries(state.palette.roles)) {
+    // `roles` also carries the monochrome flag, which is not a swatch.
+    if (typeof hexv !== 'string') continue;
     const chip = document.createElement('div');
     chip.className = 'role';
     chip.innerHTML = `<span class="role-dot" style="background:${hexv}"></span>
@@ -271,16 +319,21 @@ function renderGallery() {
   const grid = $('#design-grid');
   grid.innerHTML = '';
 
-  // Only designs that have been given a number count toward the eight.
-  const numbered = DESIGNS.filter(d => d.status === 'ready' && d.slot);
+  // Three distinct states, and conflating them hides real progress: built to
+  // a spec, numbered but still a first-pass layout, and not assigned at all.
+  const built = DESIGNS.filter(d => d.status === 'ready' && d.slot).length;
   const unnumbered = DESIGNS.filter(d => d.status === 'ready' && !d.slot).length;
-  $('#gallery-count').textContent =
-    `${numbered.length} of ${DESIGN_SLOTS} numbered designs are built` +
-    (unnumbered ? `, plus ${unnumbered} built but not yet numbered` : '') +
-    `. Slots ${pendingSlots().join(', ')} are waiting on their specifications.`;
+  const drafts = draftSlots();
+  const empty = emptySlots();
 
-  for (const d of DESIGNS) grid.appendChild(designCard(d));
-  for (const slot of pendingSlots()) grid.appendChild(pendingCard(slot));
+  const parts = [`${built} of ${DESIGN_SLOTS} designs are built to spec`];
+  if (unnumbered) parts.push(`${unnumbered} built but not yet numbered`);
+  if (drafts.length) parts.push(`slot${drafts.length > 1 ? 's' : ''} ${drafts.join(', ')} numbered but awaiting a spec`);
+  if (empty.length) parts.push(`slot${empty.length > 1 ? 's' : ''} ${empty.join(', ')} unassigned`);
+  $('#gallery-count').textContent = parts.join(' · ') + '.';
+
+  for (const d of inSlotOrder()) grid.appendChild(designCard(d));
+  for (const slot of empty) grid.appendChild(pendingCard(slot));
 }
 
 function designCard(d) {
@@ -359,13 +412,26 @@ function openEditor(id) {
 
 function onControlChange(key) {
   if (key.startsWith('logo.')) state.logoCustomized[state.active] = true;
+
+  // Choosing a badge shape and seeing nothing happen reads as a broken
+  // control. A design that ships without a badge may legitimately carry a
+  // transparent fill or no padding, so enabling a shape arms both.
+  if (key === 'logo.wrapper.shape') {
+    const L = S().logo;
+    if (L.wrapper.shape !== 'none') {
+      if (L.wrapper.opacity <= 0 && L.wrapper.borderWidth <= 0) L.wrapper.opacity = 1;
+      if (!L.padding && !L.wrapper.diameter) L.padding = DEFAULTS.logo.padding;
+      panel.refresh();
+    }
+  }
   syncSpecsVisibility();
   persist();
   scheduleRender();
 }
 
 function syncSpecsVisibility() {
-  $('#specs-group').hidden = !['editorial', 'design-5'].includes(S().template);
+  $('#specs-group').hidden =
+    !['editorial', 'design-5', 'design-2', 'design-1'].includes(S().template);
 }
 
 function paintEditorAssets() {
@@ -420,6 +486,9 @@ function render() {
 
   $('#dims-readout').textContent =
     `${W} × ${H} px · export ${W * s.canvas.exportScale} × ${H * s.canvas.exportScale}`;
+  // The button names the format it will actually produce, so switching the
+  // format on the Export tab cannot leave the label lying about it.
+  $('#download').textContent = s.canvas.format === 'jpeg' ? 'Download JPG' : 'Download PNG';
 }
 
 function scheduleRender() {
@@ -576,7 +645,7 @@ async function download() {
   out.toBlob(blob => {
     if (!blob) return toast('Export failed — try a smaller export scale.');
     saveFile(blob, name);
-  }, fmt === 'jpeg' ? 'image/jpeg' : 'image/png', 0.92);
+  }, fmt === 'jpeg' ? 'image/jpeg' : 'image/png', 0.95);
 }
 
 async function copyToClipboard() {
@@ -709,13 +778,21 @@ document.addEventListener('click', e => {
 wireDrop($('#boat-drop'), $('#boat-file'), setBoat);
 wireDrop($('#logo-drop'), $('#logo-file'), setLogo);
 wireDrop($('#logo-alt-drop'), $('#logo-alt-file'), setLogoAlt);
+wireDrop($('#water-drop'), $('#water-file'), setWater);
+wireDrop($('#brush-drop'), $('#brush-file'), setBrush);
 
-$('#intake-model').addEventListener('input', e => {
-  state.model = e.target.value;
-  saveJSON(LS.model, state.model);
-  applyModelToAll();
-  persist();
-});
+for (const f of BOAT_FIELDS) {
+  const el = $('#boat-' + f);
+  el.value = state.boat[f] || '';
+  el.addEventListener('input', () => {
+    state.boat[f] = el.value;
+    saveJSON(LS.boat, state.boat);
+    applyModelToAll();
+    if (renderSpecs) renderSpecs();
+    persist();
+    scheduleRender();
+  });
+}
 
 $('#to-gallery').addEventListener('click', () => show('gallery'));
 $('#back-to-intake').addEventListener('click', () => show('intake'));
@@ -753,23 +830,9 @@ $('#reset').addEventListener('click', () => {
   toast('Design reset.');
 });
 
-// Restore the boat name and logo so a reload does not start from nothing.
-state.model = loadJSON(LS.model) || '';
-if (state.model) { $('#intake-model').value = state.model; applyModelToAll(); }
-
-const savedLogo = loadJSON(LS.logo);
-if (savedLogo) {
-  const img = new Image();
-  img.onload = () => {
-    state.assets.logo = img;
-    $('#logo-drop').classList.add('filled');
-    $('#logo-name').textContent = 'Saved logo';
-    drawThumb($('#logo-thumb'), img);
-    runExtraction();
-    gateIntake();
-  };
-  img.src = savedLogo;
-}
+// Restore the boat record so a reload does not start from nothing.
+state.boat = { ...DEFAULT_BOAT, ...(loadJSON(LS.boat) || {}) };
+applyModelToAll();
 
 const savedLogoAlt = loadJSON(LS.logoAlt);
 if (savedLogoAlt) {
@@ -783,6 +846,54 @@ if (savedLogoAlt) {
   };
   img.src = savedLogoAlt;
 }
+
+/**
+ * Load a bundled sample, or the user's own file if they have replaced it.
+ * Samples ship so the tool opens in a working state rather than as an empty
+ * shell — every design renders on first open with nothing uploaded.
+ */
+function loadBundled(key, fallbackSrc, dropId, nameId, thumbId, target, after) {
+  const saved = loadJSON(LS[key]);
+  const img = new Image();
+  img.onload = () => {
+    state.assets[target] = img;
+    $(dropId)?.classList.add('filled');
+    if ($(nameId)) $(nameId).textContent = saved ? 'Your file' : 'Bundled sample';
+    if ($(thumbId)) drawThumb($(thumbId), img);
+    after?.();
+    scheduleRender();
+    if (state.screen === 'gallery') renderGallery();
+  };
+  img.onerror = () => {};
+  img.src = saved || fallbackSrc;
+}
+
+loadBundled('brush', 'assets/brush.png', '#brush-drop', '#brush-name', '#brush-thumb', 'brush');
+loadBundled('boatImg', 'assets/boat.jpg', '#boat-drop', '#boat-name', '#boat-thumb', 'boat',
+  () => gateIntake());
+loadBundled('logo', 'assets/logo.png', '#logo-drop', '#logo-name', '#logo-thumb', 'logo',
+  () => { runExtraction(); gateIntake(); });
+
+// Water texture: a saved one if the user replaced it, otherwise the bundled
+// cut-out, so designs that need water work with no extra step.
+(function loadWater() {
+  const saved = loadJSON(LS.water);
+  const img = new Image();
+  img.onload = () => {
+    state.assets.water = img;
+    if (saved) {
+      $('#water-drop').classList.add('filled');
+      $('#water-name').textContent = 'Saved texture';
+    } else {
+      $('#water-name').textContent = 'Using the bundled texture';
+    }
+    drawThumb($('#water-thumb'), img);
+    scheduleRender();
+    if (state.screen === 'gallery') renderGallery();
+  };
+  img.onerror = () => {};
+  img.src = saved || 'assets/water.jpg';
+})();
 
 document.fonts?.addEventListener?.('loadingdone', () => {
   scheduleRender();

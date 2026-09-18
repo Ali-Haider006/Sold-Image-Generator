@@ -11,6 +11,27 @@
 </head>
 <body>
 
+<!-- Opening this file directly gives a rendered page with dead controls: the
+     browser blocks ES modules over file://, and it does so silently unless you
+     have the console open. This notice is a classic script, which still runs
+     there, so the page can explain itself instead of just sitting inert. -->
+<div id="protocol-warning" class="protocol-warning" hidden>
+  <strong>This page needs to be served, not opened as a file.</strong>
+  <p>Your browser blocks JavaScript modules on <code>file://</code>, so the controls are inert.
+     From the project folder, run one of these and open the address it prints:</p>
+  <pre>python3 -m http.server 8000
+npx http-server -p 8000</pre>
+  <p class="protocol-hint">Then visit <code>http://localhost:8000</code>. VS Code's Live Server extension works too.</p>
+</div>
+<script>
+  // Deliberately NOT a module — a module here would be blocked by the very
+  // thing this notice exists to report.
+  if (location.protocol === 'file:') {
+    document.getElementById('protocol-warning').hidden = false;
+    document.body.classList.add('is-file-protocol');
+  }
+</script>
+
 <header class="topbar">
   <div class="brand">
     <span class="mark" aria-hidden="true"></span>
@@ -23,7 +44,7 @@
     <span id="dims-readout" class="readout"></span>
     <button type="button" id="back-to-gallery" class="btn" hidden>← All designs</button>
     <button type="button" id="copy" class="btn" hidden>Copy</button>
-    <button type="button" id="download" class="btn primary" hidden>Download PNG</button>
+    <button type="button" id="download" class="btn primary" hidden>Download JPG</button>
   </div>
 </header>
 
@@ -31,14 +52,15 @@
 <main class="screen intake" id="screen-intake">
   <div class="intake-inner">
     <h2>Start with the boat and your logo</h2>
-    <p class="lede">Both images stay on your machine — nothing is uploaded anywhere.
-      Your logo's colours are read automatically and applied to every design.</p>
+    <p class="lede">Sample artwork is loaded so every design renders straight away — replace either one
+      with your own. Both images stay on your machine; nothing is uploaded anywhere. Your logo's
+      colours are read automatically and applied to every design.</p>
 
     <div class="intake-grid">
       <div id="boat-drop" class="drop big" tabindex="0" role="button" aria-label="Upload the boat photo">
         <span class="drop-icon" aria-hidden="true">⛴</span>
         <strong>Boat photo</strong>
-        <span>Click or drop an image</span>
+        <span>Click or drop to replace</span>
         <em id="boat-name"></em>
         <canvas class="drop-thumb" id="boat-thumb" width="240" height="160" hidden></canvas>
       </div>
@@ -47,7 +69,7 @@
       <div id="logo-drop" class="drop big" tabindex="0" role="button" aria-label="Upload the dealership logo">
         <span class="drop-icon" aria-hidden="true">◎</span>
         <strong>Dealership logo</strong>
-        <span>PNG with transparency works best</span>
+        <span>Click or drop to replace · PNG with transparency works best</span>
         <em id="logo-name"></em>
         <canvas class="drop-thumb" id="logo-thumb" width="240" height="160" hidden></canvas>
       </div>
@@ -69,11 +91,53 @@
       <input type="file" id="logo-alt-file" accept="image/*" hidden>
     </details>
 
-    <label class="field">
-      <span>Boat name</span>
-      <textarea id="intake-model" rows="2" placeholder="2026 SEA FOX&#10;268 COMMANDER"></textarea>
-      <small>One line per row. Appears on every design.</small>
-    </label>
+    <details class="fonts-note">
+      <summary>Water texture — used by designs that submerge the boat</summary>
+      <p class="note">A water cut-out ships with this tool and is used by default. Replace it with your own
+        if you prefer; a stock image with a white sky works, since the white is keyed away automatically
+        so the wave edge stays photographic.</p>
+      <div id="water-drop" class="drop" tabindex="0" role="button" aria-label="Upload a water texture">
+        <strong>Water texture</strong>
+        <span>Optional — the bundled one is used otherwise</span>
+        <em id="water-name"></em>
+        <canvas class="drop-thumb" id="water-thumb" width="240" height="100" hidden></canvas>
+      </div>
+      <input type="file" id="water-file" accept="image/*" hidden>
+    </details>
+
+    <details class="fonts-note">
+      <summary>Brush artwork — used by designs with a painted stroke</summary>
+      <p class="note">A dry-brush stroke ships with this tool. It is used as a stencil: its texture comes
+        from the file, its colour from your logo, so the stroke is never stuck at whatever navy the
+        artwork was drawn in. Dark-on-white artwork works; transparency is not required.</p>
+      <div id="brush-drop" class="drop" tabindex="0" role="button" aria-label="Upload brush artwork">
+        <strong>Brush artwork</strong>
+        <span>Optional — the bundled stroke is used otherwise</span>
+        <em id="brush-name"></em>
+        <canvas class="drop-thumb" id="brush-thumb" width="240" height="120" hidden></canvas>
+      </div>
+      <input type="file" id="brush-file" accept="image/*" hidden>
+    </details>
+
+    <fieldset class="boat-record">
+      <legend>The boat</legend>
+      <p class="note">Entered once. The heading and the spec row on every design are built from these.</p>
+      <div class="boat-grid">
+        <label class="field"><span>Year</span>
+          <input type="text" id="boat-year" placeholder="2026"></label>
+        <label class="field"><span>Manufacturer</span>
+          <input type="text" id="boat-make" placeholder="SEA FOX"></label>
+        <label class="field"><span>Model</span>
+          <input type="text" id="boat-model" placeholder="268 COMMANDER"></label>
+        <label class="field"><span>Model, as displayed</span>
+          <input type="text" id="boat-display" placeholder="268 Commander"></label>
+        <label class="field"><span>Length</span>
+          <input type="text" id="boat-length" placeholder="26.0 ft"></label>
+        <label class="field"><span>Horsepower</span>
+          <input type="text" id="boat-hp" placeholder="400hp"></label>
+      </div>
+      <p class="hint" id="boat-preview"></p>
+    </fieldset>
 
     <div id="intake-palette" class="intake-palette" hidden>
       <span class="field-label">Colours read from your logo</span>
