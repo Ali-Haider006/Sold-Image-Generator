@@ -66,7 +66,7 @@ export const DEFAULTS = {
     width: 1200,
     height: 800,
     exportScale: 2,
-    format: 'png'
+    format: 'jpeg'
   },
 
   photo: {
@@ -335,7 +335,10 @@ export const SCHEMA = [
       { key: 'canvas.exportScale', label: 'Export scale', type: 'select', numeric: true,
         options: [{ value: 1, label: '1× (design size)' }, { value: 2, label: '2× (retina)' }, { value: 3, label: '3× (print-ish)' }] },
       { key: 'canvas.format', label: 'File format', type: 'select',
-        options: [{ value: 'png', label: 'PNG — sharpest text' }, { value: 'jpeg', label: 'JPEG — smaller file' }] }
+        options: [
+          { value: 'jpeg', label: 'JPG — smaller file' },
+          { value: 'png', label: 'PNG — sharpest text' }
+        ] }
     ]
   },
   {

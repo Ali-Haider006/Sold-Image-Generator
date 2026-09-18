@@ -486,6 +486,9 @@ function render() {
 
   $('#dims-readout').textContent =
     `${W} × ${H} px · export ${W * s.canvas.exportScale} × ${H * s.canvas.exportScale}`;
+  // The button names the format it will actually produce, so switching the
+  // format on the Export tab cannot leave the label lying about it.
+  $('#download').textContent = s.canvas.format === 'jpeg' ? 'Download JPG' : 'Download PNG';
 }
 
 function scheduleRender() {
@@ -642,7 +645,7 @@ async function download() {
   out.toBlob(blob => {
     if (!blob) return toast('Export failed — try a smaller export scale.');
     saveFile(blob, name);
-  }, fmt === 'jpeg' ? 'image/jpeg' : 'image/png', 0.92);
+  }, fmt === 'jpeg' ? 'image/jpeg' : 'image/png', 0.95);
 }
 
 async function copyToClipboard() {

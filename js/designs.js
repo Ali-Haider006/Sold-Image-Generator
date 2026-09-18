@@ -186,7 +186,7 @@ const DESIGN_5 = {
 /* Design 8, from the supplied coordinates at 1200x800. */
 const DESIGN_8 = {
   template: 'design-8',
-  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'png' },
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'jpeg' },
   type: {
     script: {
       // Mixed case, exactly as typed — this design does not shout.
@@ -245,7 +245,7 @@ const DESIGN_8 = {
 /* Design 1, measured off the reference at 1200x800. */
 const DESIGN_1 = {
   template: 'design-1',
-  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'png' },
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'jpeg' },
   type: {
     script: {
       family: 'Amertsadam Four', weight: 400, size: 172, tracking: 0,
@@ -294,7 +294,7 @@ const DESIGN_1 = {
 /* Design 2, measured off the reference at 1200x800. */
 const DESIGN_2 = {
   template: 'design-2',
-  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'png' },
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'jpeg' },
   type: {
     script: {
       family: 'Breathing', weight: 400, size: 158, tracking: 0,
