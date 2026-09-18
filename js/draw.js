@@ -364,6 +364,21 @@ export function shieldPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/**
+ * A full semicircle over straight sides — the dealership arch. Drawn from the
+ * bottom up so the flat base can sit on, or run off, the canvas edge.
+ */
+export function archPath(ctx, x, y, w, h) {
+  const r = w / 2;
+  const springs = y + r;          // where the arc meets the straight sides
+  ctx.beginPath();
+  ctx.moveTo(x, y + h);
+  ctx.lineTo(x, Math.min(springs, y + h));
+  ctx.arc(x + r, springs, r, Math.PI, 0);
+  ctx.lineTo(x + w, y + h);
+  ctx.closePath();
+}
+
 export function circlePath(ctx, cx, cy, r) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);

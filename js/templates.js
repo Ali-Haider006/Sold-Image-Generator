@@ -366,6 +366,83 @@ editorial.displayFont = 'Playfair Display';
 
 
 /* ================================================================
+   DESIGN 8 — full-bleed photo, navy fade, teal script, arch badge
+   ================================================================
+   Built to the supplied coordinates at the 1200x800 reference. The navy
+   uses the brief's own opacity table rather than the shared scrim easing,
+   because the curve is specified: transparent to y380, 35% at 470, 70% at
+   560, 92% at 640, solid from 680. The specification row is split two left
+   and two right around the arch, so its columns are explicit x positions
+   rather than a contiguous strip.
+   ================================================================ */
+function design8(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const D = S.arch;
+
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+
+  // Navy fade, then a solid floor beneath it.
+  const top = H * D.fadeStart, solid = H * D.solidAt;
+  const g = ctx.createLinearGradient(0, top, 0, solid);
+  [[0, 0], [0.30, 0.35], [0.60, 0.70], [0.867, 0.92], [1, 1]]
+    .forEach(([stop, a]) => g.addColorStop(stop, rgba(D.navy, a * D.strength)));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, top, W, solid - top);
+  ctx.fillStyle = rgba(D.navy, D.strength);
+  ctx.fillRect(0, solid, W, H - solid);
+
+  // Rules stop short of the arch on both sides.
+  const ry = H * D.ruleY;
+  ctx.fillStyle = rgba(S.brand.light, 0.25);
+  ctx.fillRect(0, ry, W * D.ruleLeftEnd, Math.max(1, k));
+  ctx.fillRect(W * D.ruleRightStart, ry, W - W * D.ruleRightStart, Math.max(1, k));
+
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: W * D.scriptX, y: H * D.scriptY, baseline: 'middle',
+    maxWidth: W * D.scriptWidth, scale: k
+  }, W, H);
+
+  const hx = W * D.headX;
+  const head = block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: hx, y: H * D.headY, maxWidth: W * D.headWidth, scale: k
+  }, W, H);
+
+  if (S.rule.show) {
+    line(ctx, hx, H * D.tealRuleY, S.rule.width * k, S.rule.thickness * k, S.rule.color);
+  }
+
+  block(ctx, S, 'tagline', S.text.tagline, S.type.tagline, {
+    x: hx, y: H * D.subY, maxWidth: W * D.headWidth, scale: k
+  }, W, H);
+
+  // Two columns left of the arch, two right of it.
+  const specs = (S.text.specs || []).filter(sp => sp.label || sp.value);
+  const valueSpec = {
+    ...S.type.spec, weight: 400, transform: 'none',
+    tracking: 0, size: S.type.spec.size * 0.95, color: S.brand.accent
+  };
+  specs.slice(0, D.specX.length).forEach((sp, i) => {
+    const x = W * D.specX[i];
+    const lim = W * D.specWidth;
+    drawBlock(ctx, sp.label, S.type.spec,
+      { x, y: H * D.labelY, scale: k, maxWidth: lim });
+    drawBlock(ctx, sp.value, valueSpec,
+      { x, y: H * D.valueY, scale: k, maxWidth: lim });
+  });
+
+  ctx.fillStyle = rgba(S.brand.light, 0.35);
+  for (const dx of D.dividerX) {
+    ctx.fillRect(W * dx, H * D.dividerTop, Math.max(1, k), H * D.dividerH);
+  }
+
+  drawLogo(ctx, S, W, H, A);
+}
+design8.defaults = { position: 'custom', wrapper: { shape: 'arch', bleed: 'none' } };
+design8.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'dark' };
+design8.displayFont = 'Montserrat';
+
+/* ================================================================
    DESIGN 1 — photo sheet, navy dry-brush, script, spec row on white
    ================================================================
    White ground, the photograph filling the upper band, an irregular
@@ -778,6 +855,7 @@ design4.displayFont = 'Montserrat';
 
 export const RENDERERS = {
   'design-1': design1,
+  'design-8': design8,
   'design-2': design2,
   'design-3': design3,
   'design-5': design5,

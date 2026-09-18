@@ -83,6 +83,20 @@ export const DEFAULTS = {
     fadeHold: 0.30      // how much of that reach stays solid before falling off
   },
 
+  // Design 8's navy fade, split spec row and arch. Fractions of the canvas,
+  // converted from the brief's pixel coordinates at 1200x800.
+  arch: {
+    navy: '#0b2346', strength: 1,
+    fadeStart: 0.475, solidAt: 0.85,
+    ruleY: 0.8525, ruleLeftEnd: 0.3983, ruleRightStart: 0.6017,
+    scriptX: 0.05, scriptY: 0.70, scriptWidth: 0.548,
+    headX: 0.6717, headY: 0.6125, headWidth: 0.287,
+    tealRuleY: 0.725, subY: 0.7475,
+    specX: [0.0833, 0.2967, 0.6458, 0.7933], specWidth: 0.175,
+    labelY: 0.885, valueY: 0.932,
+    dividerX: [0.2667, 0.7625], dividerTop: 0.8875, dividerH: 0.06875
+  },
+
   // Design 1's photo sheet and dry-brush stroke.
   sheet: {
     photoBottom: 0.8375,
@@ -420,9 +434,9 @@ export const SCHEMA = [
     id: 'content', tab: 'text', title: 'Text content',
     fields: [
       { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
-      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-1', 'design-2', 'design-4', 'design-5', 'diagonal-split', 'full-bleed'] },
+      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-1', 'design-2', 'design-4', 'design-5', 'design-8', 'diagonal-split', 'full-bleed'] },
       { key: 'text.model', label: 'Boat / model', type: 'textarea', rows: 2 },
-      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
+      { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'design-8', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
     ]
   },
   {
@@ -436,10 +450,41 @@ export const SCHEMA = [
     ]
   },
   typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 500, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-1', 'design-2', 'design-4', 'design-5', 'diagonal-split', 'full-bleed'] }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-1', 'design-2', 'design-4', 'design-5', 'design-8', 'diagonal-split', 'full-bleed'] }),
   typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5', 'design-2', 'design-1'], familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5', 'design-2', 'design-1', 'design-8'], familyWhen: st => !st.siteType.lockSecondary }),
+  {
+    id: 'arch', tab: 'style', title: 'Navy fade & info bar', show: ['design-8'],
+    note: 'The fade follows a fixed curve between its start and the point it turns solid; these move where that happens.',
+    fields: [
+      { key: 'arch.navy', label: 'Navy colour', type: 'color' },
+      { key: 'arch.strength', label: 'Fade strength', type: 'range', min: 0, max: 1, step: 0.01 },
+      { key: 'arch.fadeStart', label: 'Fade starts', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.solidAt', label: 'Solid from', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.ruleY', label: 'Rule height', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'arch.ruleLeftEnd', label: 'Left rule ends', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.ruleRightStart', label: 'Right rule starts', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.dividerTop', label: 'Divider top', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'arch.dividerH', label: 'Divider height', type: 'range', min: 0.01, max: 0.2, step: 0.002 }
+    ]
+  },
+  {
+    id: 'arch-text', tab: 'text', title: 'Design 8 placement', show: ['design-8'],
+    fields: [
+      { key: 'arch.scriptX', label: 'Script left', type: 'range', min: -0.1, max: 0.8, step: 0.002 },
+      { key: 'arch.scriptY', label: 'Script height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'arch.scriptWidth', label: 'Script max width', type: 'range', min: 0.2, max: 1, step: 0.005 },
+      { key: 'arch.headX', label: 'Heading left', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.headY', label: 'Heading top', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.headWidth', label: 'Heading max width', type: 'range', min: 0.1, max: 0.6, step: 0.002 },
+      { key: 'arch.tealRuleY', label: 'Teal rule height', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.subY', label: 'Subtext top', type: 'range', min: 0.3, max: 1, step: 0.002 },
+      { key: 'arch.labelY', label: 'Spec label height', type: 'range', min: 0.6, max: 1, step: 0.002 },
+      { key: 'arch.valueY', label: 'Spec value height', type: 'range', min: 0.6, max: 1, step: 0.002 },
+      { key: 'arch.specWidth', label: 'Spec column width', type: 'range', min: 0.05, max: 0.4, step: 0.002 }
+    ]
+  },
   {
     id: 'brush', tab: 'style', title: 'Dry-brush stroke', show: ['design-1'],
     note: 'The stroke is a stencil of the brush artwork, recoloured — its texture comes from the file, its colour from your logo.',

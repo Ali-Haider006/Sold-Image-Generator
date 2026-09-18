@@ -183,6 +183,65 @@ const DESIGN_5 = {
   photo: { zoom: 1.04, offsetX: 0, offsetY: 0 }
 };
 
+/* Design 8, from the supplied coordinates at 1200x800. */
+const DESIGN_8 = {
+  template: 'design-8',
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'png' },
+  type: {
+    script: {
+      // Mixed case, exactly as typed — this design does not shout.
+      family: 'Breathing', weight: 400, size: 210, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#35a8ad',
+      fit: true, rotate: -4, opacity: 1
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 37, tracking: -0.5,
+      lineHeight: 1.08, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    tagline: {
+      family: 'Montserrat', weight: 400, size: 17, tracking: 3.4,
+      lineHeight: 1.41, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 20, tracking: 0.4,
+      lineHeight: 1.4, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX\n268 COMMANDER',
+    tagline: 'CONGRATULATIONS\nTO THE NEW OWNER!'
+  },
+  logo: {
+    variant: 'main', knockout: false,
+    position: 'custom', customX: 0.5, customY: 0.911,
+    size: 100, padding: 28,
+    wrapper: {
+      shape: 'arch', fill: '#ffffff', opacity: 1, radius: 0,
+      borderWidth: 0, borderColor: '#0b2346', shadow: 0,
+      diameter: 156, bleed: 'none', bleedAmount: 0.3
+    }
+  },
+  rule: { show: true, color: '#35a8ad', width: 224, thickness: 3 },
+  brand: { accent: '#c5cfdc', light: '#ffffff' },
+  arch: {
+    navy: '#0b2346', strength: 1,
+    fadeStart: 0.475, solidAt: 0.85,
+    ruleY: 0.8525, ruleLeftEnd: 0.3983, ruleRightStart: 0.6017,
+    scriptX: 0.05, scriptY: 0.70, scriptWidth: 0.548,
+    headX: 0.6717, headY: 0.6125, headWidth: 0.287,
+    tealRuleY: 0.725, subY: 0.7475,
+    specX: [0.0833, 0.2967, 0.6458, 0.7933], specWidth: 0.175,
+    labelY: 0.885, valueY: 0.932,
+    dividerX: [0.2667, 0.7625], dividerTop: 0.8875, dividerH: 0.06875
+  },
+  // The brief asks for a light colour boost on by default.
+  photo: { zoom: 1.0, offsetX: 0, offsetY: 0, saturate: 1.15, contrast: 1.05 }
+};
+
 /* Design 1, measured off the reference at 1200x800. */
 const DESIGN_1 = {
   template: 'design-1',
@@ -381,6 +440,27 @@ export const DESIGNS = [
       S.type.model.color = r.light;
       S.type.tagline.color = tint(r.primary, 0.86);
       S.rule.color = r.light;
+      S.logo.wrapper.fill = r.light;
+    }
+  },
+  {
+    id: 'design-8', slot: 8, name: 'Dealership Arch', status: 'ready',
+    blurb: 'Full-bleed photo, navy fade, teal script, arch badge over a split spec bar.',
+    preset: DESIGN_8,
+    /**
+     * Teal and navy follow the logo; the spec values keep their light grey.
+     * The script is the accent here, so it takes the secondary rather than
+     * the primary — on a navy fade the primary would disappear.
+     */
+    paletteMap(S, r) {
+      S.brand.light = r.light;
+      S.brand.accent = tint(r.primary, 0.78);
+      S.arch.navy = r.primary;
+      S.type.script.color = r.secondary;
+      S.rule.color = r.secondary;
+      S.type.model.color = r.light;
+      S.type.tagline.color = r.light;
+      S.type.spec.color = r.light;
       S.logo.wrapper.fill = r.light;
     }
   },
