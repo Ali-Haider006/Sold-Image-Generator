@@ -11,6 +11,27 @@
 </head>
 <body>
 
+<!-- Opening this file directly gives a rendered page with dead controls: the
+     browser blocks ES modules over file://, and it does so silently unless you
+     have the console open. This notice is a classic script, which still runs
+     there, so the page can explain itself instead of just sitting inert. -->
+<div id="protocol-warning" class="protocol-warning" hidden>
+  <strong>This page needs to be served, not opened as a file.</strong>
+  <p>Your browser blocks JavaScript modules on <code>file://</code>, so the controls are inert.
+     From the project folder, run one of these and open the address it prints:</p>
+  <pre>python3 -m http.server 8000
+npx http-server -p 8000</pre>
+  <p class="protocol-hint">Then visit <code>http://localhost:8000</code>. VS Code's Live Server extension works too.</p>
+</div>
+<script>
+  // Deliberately NOT a module — a module here would be blocked by the very
+  // thing this notice exists to report.
+  if (location.protocol === 'file:') {
+    document.getElementById('protocol-warning').hidden = false;
+    document.body.classList.add('is-file-protocol');
+  }
+</script>
+
 <header class="topbar">
   <div class="brand">
     <span class="mark" aria-hidden="true"></span>
