@@ -132,7 +132,7 @@ function genericPalette(S, d, r) {
   S.type.model.color = ink('model');
   S.type.tagline.color = surf.tagline === 'light' ? r.accent : r.accent;
   S.type.spec.color = r.primary;
-  S.rule.color = r.secondary;
+  if (!r.monochrome) S.rule.color = r.secondary;
   S.logo.wrapper.fill = r.light;
   S.photo.overlay = r.dark;
 }
@@ -192,8 +192,9 @@ function drawThumb(canvas, img) {
 async function setBoat(file) {
   if (!file?.type.startsWith('image/')) return toast('Pick an image file for the boat photo.');
   try {
-    const { img } = await fileToImage(file);
+    const { img, dataURL } = await fileToImage(file);
     state.assets.boat = img;
+    saveJSON(LS.boatImg, dataURL);
     $('#boat-drop').classList.add('filled');
     $('#boat-name').textContent = file.name;
     drawThumb($('#boat-thumb'), img);
@@ -302,6 +303,8 @@ function paintRoles(host) {
   if (!host || !state.palette) return;
   host.innerHTML = '';
   for (const [name, hexv] of Object.entries(state.palette.roles)) {
+    // `roles` also carries the monochrome flag, which is not a swatch.
+    if (typeof hexv !== 'string') continue;
     const chip = document.createElement('div');
     chip.className = 'role';
     chip.innerHTML = `<span class="role-dot" style="background:${hexv}"></span>
@@ -828,20 +831,6 @@ $('#reset').addEventListener('click', () => {
 state.boat = { ...DEFAULT_BOAT, ...(loadJSON(LS.boat) || {}) };
 applyModelToAll();
 
-const savedLogo = loadJSON(LS.logo);
-if (savedLogo) {
-  const img = new Image();
-  img.onload = () => {
-    state.assets.logo = img;
-    $('#logo-drop').classList.add('filled');
-    $('#logo-name').textContent = 'Saved logo';
-    drawThumb($('#logo-thumb'), img);
-    runExtraction();
-    gateIntake();
-  };
-  img.src = savedLogo;
-}
-
 const savedLogoAlt = loadJSON(LS.logoAlt);
 if (savedLogoAlt) {
   const img = new Image();
@@ -855,19 +844,20 @@ if (savedLogoAlt) {
   img.src = savedLogoAlt;
 }
 
-/** Load a bundled asset, or the user's replacement for it if there is one. */
-function loadBundled(key, fallbackSrc, dropId, nameId, thumbId, target) {
+/**
+ * Load a bundled sample, or the user's own file if they have replaced it.
+ * Samples ship so the tool opens in a working state rather than as an empty
+ * shell — every design renders on first open with nothing uploaded.
+ */
+function loadBundled(key, fallbackSrc, dropId, nameId, thumbId, target, after) {
   const saved = loadJSON(LS[key]);
   const img = new Image();
   img.onload = () => {
     state.assets[target] = img;
-    if (saved) {
-      $(dropId).classList.add('filled');
-      $(nameId).textContent = 'Saved file';
-    } else {
-      $(nameId).textContent = 'Using the bundled file';
-    }
-    drawThumb($(thumbId), img);
+    $(dropId)?.classList.add('filled');
+    if ($(nameId)) $(nameId).textContent = saved ? 'Your file' : 'Bundled sample';
+    if ($(thumbId)) drawThumb($(thumbId), img);
+    after?.();
     scheduleRender();
     if (state.screen === 'gallery') renderGallery();
   };
@@ -876,6 +866,10 @@ function loadBundled(key, fallbackSrc, dropId, nameId, thumbId, target) {
 }
 
 loadBundled('brush', 'assets/brush.png', '#brush-drop', '#brush-name', '#brush-thumb', 'brush');
+loadBundled('boatImg', 'assets/boat.jpg', '#boat-drop', '#boat-name', '#boat-thumb', 'boat',
+  () => gateIntake());
+loadBundled('logo', 'assets/logo.png', '#logo-drop', '#logo-name', '#logo-thumb', 'logo',
+  () => { runExtraction(); gateIntake(); });
 
 // Water texture: a saved one if the user replaced it, otherwise the bundled
 // cut-out, so designs that need water work with no extra step.

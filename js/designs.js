@@ -389,8 +389,7 @@ export const DESIGNS = [
       S.type.display.color = r.light;
       S.type.model.color = r.light;
       S.type.tagline.color = tint(r.primary, 0.72);
-      S.rule.color = r.secondary;
-      S.ruleB.color = r.secondary;
+      if (!r.monochrome) { S.rule.color = r.secondary; S.ruleB.color = r.secondary; }
       S.logo.wrapper.fill = r.light;
     }
   },
@@ -406,7 +405,7 @@ export const DESIGNS = [
       S.type.tagline.color = '#8b939e';      // spec pins the tagline to grey
       S.divider.color = r.primary;
       S.divider.color2 = tint(r.primary, 0.78);
-      S.rule.color = r.secondary;
+      if (!r.monochrome) S.rule.color = r.secondary;
       S.logo.wrapper.fill = r.light;
     }
   },
@@ -456,8 +455,10 @@ export const DESIGNS = [
       S.brand.light = r.light;
       S.brand.accent = tint(r.primary, 0.78);
       S.arch.navy = r.primary;
-      S.type.script.color = r.secondary;
-      S.rule.color = r.secondary;
+      if (!r.monochrome) {
+        S.type.script.color = r.secondary;
+        S.rule.color = r.secondary;
+      }
       S.type.model.color = r.light;
       S.type.tagline.color = r.light;
       S.type.spec.color = r.light;

@@ -52,14 +52,15 @@ npx http-server -p 8000</pre>
 <main class="screen intake" id="screen-intake">
   <div class="intake-inner">
     <h2>Start with the boat and your logo</h2>
-    <p class="lede">Both images stay on your machine — nothing is uploaded anywhere.
-      Your logo's colours are read automatically and applied to every design.</p>
+    <p class="lede">Sample artwork is loaded so every design renders straight away — replace either one
+      with your own. Both images stay on your machine; nothing is uploaded anywhere. Your logo's
+      colours are read automatically and applied to every design.</p>
 
     <div class="intake-grid">
       <div id="boat-drop" class="drop big" tabindex="0" role="button" aria-label="Upload the boat photo">
         <span class="drop-icon" aria-hidden="true">⛴</span>
         <strong>Boat photo</strong>
-        <span>Click or drop an image</span>
+        <span>Click or drop to replace</span>
         <em id="boat-name"></em>
         <canvas class="drop-thumb" id="boat-thumb" width="240" height="160" hidden></canvas>
       </div>
@@ -68,7 +69,7 @@ npx http-server -p 8000</pre>
       <div id="logo-drop" class="drop big" tabindex="0" role="button" aria-label="Upload the dealership logo">
         <span class="drop-icon" aria-hidden="true">◎</span>
         <strong>Dealership logo</strong>
-        <span>PNG with transparency works best</span>
+        <span>Click or drop to replace · PNG with transparency works best</span>
         <em id="logo-name"></em>
         <canvas class="drop-thumb" id="logo-thumb" width="240" height="160" hidden></canvas>
       </div>
