@@ -105,25 +105,30 @@ export function drawLogo(ctx, S, W, H, A) {
   ctx.save();
   ctx.globalAlpha = S.logo.opacity;
 
-  if (shape !== 'none' && Wr.opacity > 0) {
-    ctx.save();
-    if (Wr.shadow > 0) {
-      ctx.shadowColor = rgba('#000000', Wr.shadow * 0.55);
-      ctx.shadowBlur = 34 * k;
-      ctx.shadowOffsetY = 10 * k;
-    }
-    if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2);
-    else if (shape === 'shield') shieldPath(ctx, box.x, box.y, box.w, box.h, radius);
-    else roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
-
-    ctx.fillStyle = rgba(Wr.fill, Wr.opacity);
-    ctx.fill();
-    ctx.restore();
-
-    if (Wr.borderWidth > 0) {
-      if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2 - Wr.borderWidth * k / 2);
+  if (shape !== 'none') {
+    const path = () => {
+      if (shape === 'circle') circlePath(ctx, box.cx, box.cy, box.w / 2);
       else if (shape === 'shield') shieldPath(ctx, box.x, box.y, box.w, box.h, radius);
       else roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
+    };
+
+    if (Wr.opacity > 0) {
+      ctx.save();
+      if (Wr.shadow > 0) {
+        ctx.shadowColor = rgba('#000000', Wr.shadow * 0.55);
+        ctx.shadowBlur = 34 * k;
+        ctx.shadowOffsetY = 10 * k;
+      }
+      path();
+      ctx.fillStyle = rgba(Wr.fill, Wr.opacity);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Stroked independently of the fill: an outline-only badge is a real
+    // thing to want, and it used to vanish whenever the fill was transparent.
+    if (Wr.borderWidth > 0) {
+      path();
       ctx.strokeStyle = Wr.borderColor;
       ctx.lineWidth = Wr.borderWidth * k;
       ctx.stroke();

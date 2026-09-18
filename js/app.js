@@ -409,6 +409,18 @@ function openEditor(id) {
 
 function onControlChange(key) {
   if (key.startsWith('logo.')) state.logoCustomized[state.active] = true;
+
+  // Choosing a badge shape and seeing nothing happen reads as a broken
+  // control. A design that ships without a badge may legitimately carry a
+  // transparent fill or no padding, so enabling a shape arms both.
+  if (key === 'logo.wrapper.shape') {
+    const L = S().logo;
+    if (L.wrapper.shape !== 'none') {
+      if (L.wrapper.opacity <= 0 && L.wrapper.borderWidth <= 0) L.wrapper.opacity = 1;
+      if (!L.padding && !L.wrapper.diameter) L.padding = DEFAULTS.logo.padding;
+      panel.refresh();
+    }
+  }
   syncSpecsVisibility();
   persist();
   scheduleRender();

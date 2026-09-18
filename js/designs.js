@@ -162,8 +162,12 @@ const DESIGN_5 = {
     // reversed file, or a white knockout when none has been supplied.
     variant: 'reversed', knockout: true, knockoutColor: '#ffffff',
     position: 'custom', customX: 0.89, customY: 0.60,
-    size: 162, padding: 0,
-    wrapper: { shape: 'none', opacity: 0, shadow: 0, diameter: 0, bleed: 'none' }
+    size: 162, padding: 26,
+    wrapper: {
+      shape: 'none', fill: '#ffffff', opacity: 1, radius: 28,
+      borderWidth: 0, borderColor: '#12244d', shadow: 0.1,
+      diameter: 0, bleed: 'none', bleedAmount: 0.3
+    }
   },
   rule: { show: false },
   frame: {
@@ -207,8 +211,12 @@ const DESIGN_1 = {
   logo: {
     variant: 'main', knockout: false,
     position: 'custom', customX: 0.839, customY: 0.681,
-    size: 195, padding: 0,
-    wrapper: { shape: 'none', opacity: 0, shadow: 0, diameter: 0, bleed: 'none' }
+    size: 195, padding: 26,
+    wrapper: {
+      shape: 'none', fill: '#ffffff', opacity: 1, radius: 28,
+      borderWidth: 0, borderColor: '#0d2645', shadow: 0.1,
+      diameter: 0, bleed: 'none', bleedAmount: 0.3
+    }
   },
   rule: { show: false },
   brand: { accent: '#7d8a9c' },
