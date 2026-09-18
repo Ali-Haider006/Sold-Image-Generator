@@ -17,7 +17,7 @@
 ------------------------------------------------------------------- */
 
 import {
-  unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath
+  unit, drawBlock, photo, scrim, rgba, line, chevronPath, dividerPath, keyWhite
 } from './draw.js';
 import { drawLogo, logoGeometry, pickLogo } from './logo.js';
 
@@ -364,6 +364,66 @@ editorial.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 
 editorial.displayFont = 'Playfair Display';
 
 
+/* ================================================================
+   DESIGN 2 — boat photo half-submerged, script over the water
+   ================================================================
+   Layered exactly as the brief describes, bottom to top:
+     boat photo -> deep-water fill -> water texture -> readability
+     gradient -> script -> boat heading -> spec row
+   The waterline is the texture's own photographic edge, not a drawn
+   shape, which is why the white sky in the source has to be keyed out
+   rather than cropped off at a straight line.
+   ================================================================ */
+function design2(ctx, S, A, W, H) {
+  const k = unit(W, H);
+  const Wa = S.water;
+
+  if (A.boat) photo(ctx, A.boat, S.photo, 0, 0, W, H);
+  else placeholder(ctx, S, 0, 0, W, H);
+
+  // Deep water beneath the texture, so a short texture can never leave a gap
+  // between the surface and the bottom of the canvas.
+  const deepY = H * Wa.deepStart;
+  ctx.fillStyle = Wa.deep;
+  ctx.fillRect(0, deepY, W, H - deepY);
+
+  if (A.water) {
+    const keyed = keyWhite(A.water, Wa.keyWhite);
+    if (keyed) {
+      const dw = W * Wa.scale;
+      const dh = dw * (keyed.height / keyed.width);
+      ctx.drawImage(keyed, (W - dw) / 2 + W * Wa.offsetX, H * Wa.y, dw, dh);
+    }
+  }
+
+  // Readability gradient — the type sits on this, not on the raw texture.
+  scrim(ctx, 0, 0, W, H, Wa.scrim, Wa.scrimOpacity, 'bottom', Wa.scrimReach, 0.12);
+
+  block(ctx, S, 'script', S.text.script, S.type.script, {
+    x: W * 0.5, y: H * Wa.scriptY, align: 'center', baseline: 'middle',
+    maxWidth: W * Wa.scriptWidth, scale: k
+  }, W, H);
+
+  block(ctx, S, 'model', S.text.model, S.type.model, {
+    x: W * 0.5, y: H * Wa.headingY, align: 'center', baseline: 'middle',
+    maxWidth: W * 0.84, scale: k
+  }, W, H);
+
+  const sx = W * Wa.specLeft;
+  const sw = W * (Wa.specRight - Wa.specLeft);
+  specStrip(ctx, S, k, {
+    x: sx, y: H * Wa.specY, w: sw, h: H * Wa.specH,
+    labelColor: S.type.spec.color,
+    valueColor: rgba(S.type.spec.color, 0.72),
+    dividerColor: rgba(S.brand.light, 0.35)
+  });
+
+  drawLogo(ctx, S, W, H, A);
+}
+design2.defaults = { position: 'top-right', wrapper: { shape: 'circle', bleed: 'none' } };
+design2.surfaces = { display: 'dark', script: 'dark', model: 'dark', tagline: 'dark', spec: 'dark' };
+design2.displayFont = 'Montserrat';
+
 /**
  * Four label/value columns with hairline dividers.
  *
@@ -638,6 +698,7 @@ design4.surfaces = { display: 'light', script: 'light', model: 'light', tagline:
 design4.displayFont = 'Montserrat';
 
 export const RENDERERS = {
+  'design-2': design2,
   'design-3': design3,
   'design-5': design5,
   'design-4': design4,

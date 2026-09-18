@@ -383,6 +383,20 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent);
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn:disabled:hover { border-color: var(--line); }
 
+.boat-record {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); padding: 16px 18px 18px; margin: 0;
+}
+.boat-record legend {
+  padding: 0 8px; font-size: 12px; color: var(--ink-dim);
+  text-transform: uppercase; letter-spacing: .09em;
+}
+.boat-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px; margin-top: 4px;
+}
+#boat-preview { margin: 12px 0 0; color: var(--accent); font-size: 12.5px; }
+
 /* ---------- gallery ---------- */
 
 .gallery-inner { max-width: 1240px; margin: 0 auto; padding: 32px 20px 80px; }
@@ -438,6 +452,7 @@ button.design-card:hover { border-color: var(--accent); transform: translateY(-2
   body { overflow: visible; }
   .screen.editor { grid-template-columns: 1fr; }
   .intake-grid { grid-template-columns: 1fr; }
+  .boat-grid { grid-template-columns: 1fr 1fr; }
   .font-slot { grid-template-columns: 1fr auto; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); order: 2; }
   .stage { order: 1; padding: 16px; }

@@ -90,11 +90,39 @@ npx http-server -p 8000</pre>
       <input type="file" id="logo-alt-file" accept="image/*" hidden>
     </details>
 
-    <label class="field">
-      <span>Boat name</span>
-      <textarea id="intake-model" rows="2" placeholder="2026 SEA FOX&#10;268 COMMANDER"></textarea>
-      <small>One line per row. Appears on every design.</small>
-    </label>
+    <details class="fonts-note">
+      <summary>Water texture — used by designs that submerge the boat</summary>
+      <p class="note">A water cut-out ships with this tool and is used by default. Replace it with your own
+        if you prefer; a stock image with a white sky works, since the white is keyed away automatically
+        so the wave edge stays photographic.</p>
+      <div id="water-drop" class="drop" tabindex="0" role="button" aria-label="Upload a water texture">
+        <strong>Water texture</strong>
+        <span>Optional — the bundled one is used otherwise</span>
+        <em id="water-name"></em>
+        <canvas class="drop-thumb" id="water-thumb" width="240" height="100" hidden></canvas>
+      </div>
+      <input type="file" id="water-file" accept="image/*" hidden>
+    </details>
+
+    <fieldset class="boat-record">
+      <legend>The boat</legend>
+      <p class="note">Entered once. The heading and the spec row on every design are built from these.</p>
+      <div class="boat-grid">
+        <label class="field"><span>Year</span>
+          <input type="text" id="boat-year" placeholder="2026"></label>
+        <label class="field"><span>Manufacturer</span>
+          <input type="text" id="boat-make" placeholder="SEA FOX"></label>
+        <label class="field"><span>Model</span>
+          <input type="text" id="boat-model" placeholder="268 COMMANDER"></label>
+        <label class="field"><span>Model, as displayed</span>
+          <input type="text" id="boat-display" placeholder="268 Commander"></label>
+        <label class="field"><span>Length</span>
+          <input type="text" id="boat-length" placeholder="26.0 ft"></label>
+        <label class="field"><span>Horsepower</span>
+          <input type="text" id="boat-hp" placeholder="400hp"></label>
+      </div>
+      <p class="hint" id="boat-preview"></p>
+    </fieldset>
 
     <div id="intake-palette" class="intake-palette" hidden>
       <span class="field-label">Colours read from your logo</span>

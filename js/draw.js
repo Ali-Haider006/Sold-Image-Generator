@@ -105,6 +105,15 @@ export function drawBlock(ctx, text, spec, opts = {}) {
 
   if (!measureOnly) {
     ctx.save();
+    if (spec.opacity != null && spec.opacity < 1) ctx.globalAlpha *= spec.opacity;
+    if (spec.rotate) {
+      // Spin around the block's own centre so the anchor point does not move.
+      const bx0 = align === 'center' ? x - widest / 2 : align === 'right' ? x - widest : x;
+      const ccx = bx0 + widest / 2, ccy = top + height / 2;
+      ctx.translate(ccx, ccy);
+      ctx.rotate(spec.rotate * Math.PI / 180);
+      ctx.translate(-ccx, -ccy);
+    }
     ctx.fillStyle = color || spec.color;
     ctx.textBaseline = 'alphabetic';
     rows.forEach((row, i) => {
@@ -179,6 +188,46 @@ export function knockout(ctx, img, x, y, w, h, color) {
   o.fillRect(0, 0, off.width, off.height);
 
   ctx.drawImage(off, x, y, w, h);
+}
+
+/**
+ * Make a water texture's white backdrop transparent, keeping its wave edge.
+ *
+ * Stock water cut-outs ship as JPEGs with a flat white sky above the surface,
+ * which would paint a white band across the photo underneath. Keying on
+ * near-white preserves the irregular, photographic waterline that a drawn
+ * shape cannot fake. The threshold is deliberately tight — foam and crests
+ * read as light blue, not white, so they survive.
+ *
+ * The result is cached on the image element: this walks every pixel, and it
+ * must not run on each frame.
+ */
+export function keyWhite(img, strength = 1) {
+  if (!img) return null;
+  if (img.__keyed && img.__keyedStrength === strength) return img.__keyed;
+
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+
+  if (strength > 0) {
+    const d = ctx.getImageData(0, 0, c.width, c.height);
+    const px = d.data;
+    const LO = 238, HI = 252;              // ramp from opaque to clear
+    for (let i = 0; i < px.length; i += 4) {
+      const min = Math.min(px[i], px[i + 1], px[i + 2]);
+      if (min <= LO) continue;
+      const t = Math.min(1, (min - LO) / (HI - LO));
+      px[i + 3] = Math.round(px[i + 3] * (1 - t * strength));
+    }
+    ctx.putImageData(d, 0, 0);
+  }
+
+  img.__keyed = c;
+  img.__keyedStrength = strength;
+  return c;
 }
 
 export const filterString = p =>

@@ -179,7 +179,72 @@ const DESIGN_5 = {
   photo: { zoom: 1.04, offsetX: 0, offsetY: 0 }
 };
 
+/* Design 2, measured off the reference at 1200x800. */
+const DESIGN_2 = {
+  template: 'design-2',
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'png' },
+  type: {
+    script: {
+      family: 'Breathing', weight: 400, size: 158, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 30, tracking: 1.1,
+      lineHeight: 1.2, transform: 'uppercase', color: '#e65a0a',
+      fit: true, rotate: 0, opacity: 1
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 19, tracking: 1.4,
+      lineHeight: 1.5, transform: 'uppercase', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX 268 COMMANDER'
+  },
+  logo: {
+    variant: 'main', knockout: false,
+    position: 'top-right', size: 118, offsetX: 60, offsetY: 8, padding: 16,
+    wrapper: {
+      shape: 'circle', fill: '#ffffff', opacity: 1, shadow: 0.1,
+      diameter: 150, bleed: 'none', bleedAmount: 0.3
+    }
+  },
+  rule: { show: false },
+  water: {
+    y: 0.45, scale: 1.0, offsetX: 0, keyWhite: 1,
+    deep: '#06304f', deepStart: 0.55,
+    scrim: '#04223a', scrimOpacity: 0.56, scrimReach: 0.6,
+    scriptY: 0.672, scriptWidth: 0.68,
+    headingY: 0.818,
+    specLeft: 0.1875, specRight: 0.8125,
+    specY: 0.855, specH: 0.115
+  },
+  photo: { zoom: 1.0, offsetX: 0, offsetY: -0.06 }
+};
+
 export const DESIGNS = [
+  {
+    id: 'design-2', slot: 2, name: 'Waterline', status: 'ready',
+    blurb: 'Boat half-submerged, script over the water, orange heading, spec row.',
+    preset: DESIGN_2,
+    /** The heading is one line here, not stacked. */
+    modelTransform: t => t.replace(/\s*\n+\s*/g, ' '),
+    /**
+     * Only the badge and the deep water follow the logo. The script stays
+     * white and the heading stays orange — the brief pins both, and a palette
+     * that overrode them would stop reproducing the reference.
+     */
+    paletteMap(S, r) {
+      S.brand.dark = r.primary;
+      S.brand.light = r.light;
+      S.logo.wrapper.fill = r.light;
+      S.type.script.color = r.light;
+      S.type.spec.color = r.light;
+    }
+  },
   {
     id: 'design-3', slot: 3, name: 'Bold Fade', status: 'ready',
     blurb: 'Oversized JUST SOLD over a brand-coloured fade, badge bottom right.',

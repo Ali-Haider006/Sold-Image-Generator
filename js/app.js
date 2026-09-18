@@ -23,8 +23,16 @@ import {
 
 const $ = sel => document.querySelector(sel);
 const LS = {
-  logo: 'sig.logo.v2', logoAlt: 'sig.logoalt.v1', model: 'sig.model.v2',
-  settings: 'sig.designs.v3', fonts: 'sig.fonts.v2'
+  logo: 'sig.logo.v2', logoAlt: 'sig.logoalt.v1', boat: 'sig.boat.v1',
+  water: 'sig.water.v1',
+  settings: 'sig.designs.v4', fonts: 'sig.fonts.v2'
+};
+
+/** The boat, entered once and composed into every design. */
+const BOAT_FIELDS = ['year', 'make', 'model', 'display', 'length', 'hp'];
+const DEFAULT_BOAT = {
+  year: '2026', make: 'SEA FOX', model: '268 COMMANDER',
+  display: '268 Commander', length: '26.0 ft', hp: '400hp'
 };
 
 const loadJSON = key => {
@@ -36,9 +44,9 @@ const saveJSON = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)
 
 const state = {
   screen: 'intake',
-  assets: { boat: null, logo: null, logoAlt: null },
+  assets: { boat: null, logo: null, logoAlt: null, water: null },
   palette: null,
-  model: '',
+  boat: { ...DEFAULT_BOAT },
   settings: {},          // design id -> settings
   active: null,          // design id open in the editor
   logoCustomized: {},    // design id -> bool
@@ -63,14 +71,39 @@ const persist = () => saveJSON(LS.settings, state.settings);
 
 /* ---------- shared values pushed into every design ---------- */
 
+/** "2026 SEA FOX" / "268 COMMANDER" — stacked, since most designs set it so. */
+function headingText() {
+  const b = state.boat;
+  const top = [b.year, b.make].filter(Boolean).join(' ').trim();
+  const bottom = (b.model || '').trim();
+  return [top, bottom].filter(Boolean).join('\n');
+}
+
+function specRows() {
+  const b = state.boat;
+  return [
+    { label: 'Model', value: b.display || b.model || '' },
+    { label: 'Year', value: b.year || '' },
+    { label: 'Length', value: b.length || '' },
+    { label: 'Horsepower', value: b.hp || '' }
+  ];
+}
+
+/**
+ * Push the boat record into every design. A design may want the heading
+ * shaped differently — designs 2 and 5 set it on one line where the others
+ * stack it — so each gets its own transform.
+ */
 function applyModelToAll() {
-  const text = state.model.trim();
-  if (!text) return;
-  // A design may want the shared name shaped differently — design 5 sets it
-  // on one line where the others stack it.
+  const heading = headingText();
+  const rows = specRows();
   for (const d of DESIGNS) {
-    state.settings[d.id].text.model = d.modelTransform ? d.modelTransform(text) : text;
+    const S_ = state.settings[d.id];
+    if (heading) S_.text.model = d.modelTransform ? d.modelTransform(heading) : heading;
+    S_.text.specs = clone(rows);
   }
+  const preview = $('#boat-preview');
+  if (preview) preview.textContent = heading ? heading.replace('\n', ' ') : '';
 }
 
 /**
@@ -164,10 +197,6 @@ async function setBoat(file) {
     $('#boat-drop').classList.add('filled');
     $('#boat-name').textContent = file.name;
     drawThumb($('#boat-thumb'), img);
-    if (!state.model) {
-      const guess = guessModel(file.name);
-      if (guess) { state.model = guess; $('#intake-model').value = guess; applyModelToAll(); }
-    }
     gateIntake();
   } catch { toast('That file could not be read as an image.'); }
 }
@@ -186,6 +215,20 @@ async function setLogo(file) {
   } catch { toast('That file could not be read as an image.'); }
 }
 
+async function setWater(file) {
+  if (!file?.type.startsWith('image/')) return toast('Pick an image file for the water texture.');
+  try {
+    const { img, dataURL } = await fileToImage(file);
+    state.assets.water = img;
+    saveJSON(LS.water, dataURL);
+    $('#water-drop').classList.add('filled');
+    $('#water-name').textContent = file.name;
+    drawThumb($('#water-thumb'), img);
+    scheduleRender();
+    toast('Water texture replaced.');
+  } catch { toast('That file could not be read as an image.'); }
+}
+
 async function setLogoAlt(file) {
   if (!file?.type.startsWith('image/')) return toast('Pick an image file for the reversed logo.');
   try {
@@ -198,18 +241,6 @@ async function setLogoAlt(file) {
     scheduleRender();
     toast('Reversed logo added.');
   } catch { toast('That file could not be read as an image.'); }
-}
-
-/** "2026-sea-fox-268-commander.jpg" -> "2026 SEA FOX\n268 COMMANDER". */
-function guessModel(name) {
-  const base = name.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').trim();
-  const m = base.match(/^(19|20)\d{2}\b/);
-  if (!m) return '';
-  const words = base.slice(m[0].length).trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return '';
-  const head = [m[0], ...words.slice(0, 2)].join(' ');
-  const tail = words.slice(2).join(' ');
-  return (tail ? `${head}\n${tail}` : head).toUpperCase();
 }
 
 function gateIntake() {
@@ -365,7 +396,7 @@ function onControlChange(key) {
 }
 
 function syncSpecsVisibility() {
-  $('#specs-group').hidden = !['editorial', 'design-5'].includes(S().template);
+  $('#specs-group').hidden = !['editorial', 'design-5', 'design-2'].includes(S().template);
 }
 
 function paintEditorAssets() {
@@ -709,13 +740,20 @@ document.addEventListener('click', e => {
 wireDrop($('#boat-drop'), $('#boat-file'), setBoat);
 wireDrop($('#logo-drop'), $('#logo-file'), setLogo);
 wireDrop($('#logo-alt-drop'), $('#logo-alt-file'), setLogoAlt);
+wireDrop($('#water-drop'), $('#water-file'), setWater);
 
-$('#intake-model').addEventListener('input', e => {
-  state.model = e.target.value;
-  saveJSON(LS.model, state.model);
-  applyModelToAll();
-  persist();
-});
+for (const f of BOAT_FIELDS) {
+  const el = $('#boat-' + f);
+  el.value = state.boat[f] || '';
+  el.addEventListener('input', () => {
+    state.boat[f] = el.value;
+    saveJSON(LS.boat, state.boat);
+    applyModelToAll();
+    if (renderSpecs) renderSpecs();
+    persist();
+    scheduleRender();
+  });
+}
 
 $('#to-gallery').addEventListener('click', () => show('gallery'));
 $('#back-to-intake').addEventListener('click', () => show('intake'));
@@ -753,9 +791,9 @@ $('#reset').addEventListener('click', () => {
   toast('Design reset.');
 });
 
-// Restore the boat name and logo so a reload does not start from nothing.
-state.model = loadJSON(LS.model) || '';
-if (state.model) { $('#intake-model').value = state.model; applyModelToAll(); }
+// Restore the boat record so a reload does not start from nothing.
+state.boat = { ...DEFAULT_BOAT, ...(loadJSON(LS.boat) || {}) };
+applyModelToAll();
 
 const savedLogo = loadJSON(LS.logo);
 if (savedLogo) {
@@ -783,6 +821,27 @@ if (savedLogoAlt) {
   };
   img.src = savedLogoAlt;
 }
+
+// Water texture: a saved one if the user replaced it, otherwise the bundled
+// cut-out, so designs that need water work with no extra step.
+(function loadWater() {
+  const saved = loadJSON(LS.water);
+  const img = new Image();
+  img.onload = () => {
+    state.assets.water = img;
+    if (saved) {
+      $('#water-drop').classList.add('filled');
+      $('#water-name').textContent = 'Saved texture';
+    } else {
+      $('#water-name').textContent = 'Using the bundled texture';
+    }
+    drawThumb($('#water-thumb'), img);
+    scheduleRender();
+    if (state.screen === 'gallery') renderGallery();
+  };
+  img.onerror = () => {};
+  img.src = saved || 'assets/water.jpg';
+})();
 
 document.fonts?.addEventListener?.('loadingdone', () => {
   scheduleRender();
