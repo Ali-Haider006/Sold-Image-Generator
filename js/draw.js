@@ -230,6 +230,55 @@ export function keyWhite(img, strength = 1) {
   return c;
 }
 
+/**
+ * Turn a dark-on-white artwork into a recolourable stencil.
+ *
+ * The supplied brush is navy on an opaque white background with no alpha at
+ * all. Keying only near-white (as the water texture does) would throw away
+ * the dry-brush texture, because the scratchy parts are mid-grey blends, not
+ * white. Deriving alpha from luminance keeps the whole gradient — that IS
+ * the texture — and normalising against the darkest pixel found means the
+ * solid body reaches full opacity. Filling through `source-in` then paints it
+ * in the brand colour, so the stroke is not stuck at whatever navy the source
+ * file happened to use.
+ *
+ * Cached per colour on the image: this walks every pixel.
+ */
+export function stencil(img, color) {
+  if (!img) return null;
+  if (img.__stencil && img.__stencilColor === color) return img.__stencil;
+
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+
+  const d = ctx.getImageData(0, 0, c.width, c.height);
+  const px = d.data;
+  const lum = new Float32Array(px.length / 4);
+  let darkest = 1;
+
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const l = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
+    lum[j] = l;
+    if (px[i + 3] > 8 && l < darkest) darkest = l;
+  }
+  const span = Math.max(0.05, 1 - darkest);
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    px[i + 3] = Math.round(255 * Math.max(0, Math.min(1, (1 - lum[j]) / span)));
+  }
+  ctx.putImageData(d, 0, 0);
+
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  img.__stencil = c;
+  img.__stencilColor = color;
+  return c;
+}
+
 export const filterString = p =>
   `brightness(${p.brightness}) contrast(${p.contrast}) saturate(${p.saturate})`;
 

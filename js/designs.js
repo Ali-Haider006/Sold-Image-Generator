@@ -179,6 +179,51 @@ const DESIGN_5 = {
   photo: { zoom: 1.04, offsetX: 0, offsetY: 0 }
 };
 
+/* Design 1, measured off the reference at 1200x800. */
+const DESIGN_1 = {
+  template: 'design-1',
+  canvas: { preset: '1200x800', width: 1200, height: 800, exportScale: 1, format: 'png' },
+  type: {
+    script: {
+      family: 'Amertsadam Four', weight: 400, size: 172, tracking: 0,
+      lineHeight: 1.0, transform: 'none', color: '#ffffff',
+      fit: true, rotate: 0, opacity: 1
+    },
+    model: {
+      family: 'Montserrat', weight: 700, size: 26, tracking: 1.5,
+      lineHeight: 1.2, transform: 'uppercase', color: '#c2ccd9',
+      fit: true, rotate: 0, opacity: 1
+    },
+    spec: {
+      family: 'Montserrat', weight: 700, size: 19, tracking: 0.6,
+      lineHeight: 1.5, transform: 'uppercase', color: '#0d2645',
+      fit: true, rotate: 0, opacity: 1
+    }
+  },
+  text: {
+    script: 'Just Sold!',
+    model: '2026 SEA FOX 268 COMMANDER'
+  },
+  logo: {
+    variant: 'main', knockout: false,
+    position: 'custom', customX: 0.839, customY: 0.681,
+    size: 195, padding: 0,
+    wrapper: { shape: 'none', opacity: 0, shadow: 0, diameter: 0, bleed: 'none' }
+  },
+  rule: { show: false },
+  brand: { accent: '#7d8a9c' },
+  sheet: {
+    photoBottom: 0.8375,
+    scriptX: 0.025, scriptY: 0.585, scriptWidth: 0.60,
+    headingY: 0.735,
+    specLeft: 0.052, specRight: 0.845,
+    specY: 0.858, specH: 0.125,
+    specWeights: [1.25, 0.8, 0.9, 1.25]
+  },
+  brush: { x: -0.06, y: 0.44, w: 0.86, h: 0.47, color: '#0d2645', opacity: 1 },
+  photo: { zoom: 1.0, offsetX: 0, offsetY: 0 }
+};
+
 /* Design 2, measured off the reference at 1200x800. */
 const DESIGN_2 = {
   template: 'design-2',
@@ -226,6 +271,27 @@ const DESIGN_2 = {
 };
 
 export const DESIGNS = [
+  {
+    id: 'design-1', slot: 1, name: 'Brush Sheet', status: 'ready',
+    blurb: 'Photo sheet, navy dry-brush stroke, script, spec row on white.',
+    preset: DESIGN_1,
+    /** The heading sits on one line inside the brush. */
+    modelTransform: t => t.replace(/\s*\n+\s*/g, ' '),
+    /**
+     * Brush and spec labels take the logo's major colour, which is what the
+     * brief means by deriving the navy from the logo rather than picking one.
+     * The script stays white — it has to read against that brush.
+     */
+    paletteMap(S, r) {
+      S.brand.primary = r.primary;
+      S.brand.light = '#ffffff';
+      S.brand.accent = tint(r.primary, 0.52);
+      S.brush.color = r.primary;
+      S.type.script.color = '#ffffff';
+      S.type.model.color = tint(r.primary, 0.74);
+      S.type.spec.color = r.primary;
+    }
+  },
   {
     id: 'design-2', slot: 2, name: 'Waterline', status: 'ready',
     blurb: 'Boat half-submerged, script over the water, orange heading, spec row.',

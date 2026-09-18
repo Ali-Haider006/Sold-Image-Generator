@@ -15,7 +15,8 @@
 /** Commercial faces: name -> the free face we render with until it's uploaded. */
 export const LICENSED_FONTS = {
   'Intro Rust': { substitute: 'Archivo Black', kind: 'display' },
-  'Breathing':  { substitute: 'Kaushan Script', kind: 'script' }
+  'Breathing':  { substitute: 'Kaushan Script', kind: 'script' },
+  'Amertsadam Four': { substitute: 'Allura', kind: 'script' }
 };
 
 export const FONT_CATALOG = {
@@ -30,7 +31,7 @@ export const FONT_CATALOG = {
     'Source Sans 3', 'Nunito Sans'
   ],
   script: [
-    'Breathing', 'Kaushan Script', 'Great Vibes', 'Dancing Script',
+    'Amertsadam Four', 'Breathing', 'Kaushan Script', 'Great Vibes', 'Dancing Script',
     'Sacramento', 'Allura', 'Parisienne', 'Yellowtail', 'Pacifico',
     'Petit Formal Script'
   ]

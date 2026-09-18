@@ -83,6 +83,20 @@ export const DEFAULTS = {
     fadeHold: 0.30      // how much of that reach stays solid before falling off
   },
 
+  // Design 1's photo sheet and dry-brush stroke.
+  sheet: {
+    photoBottom: 0.8375,
+    scriptX: 0.025, scriptY: 0.585, scriptWidth: 0.60,
+    headingY: 0.735,
+    specLeft: 0.052, specRight: 0.845,
+    specY: 0.858, specH: 0.125,
+    specWeights: [1.25, 0.8, 0.9, 1.25]
+  },
+  brush: {
+    x: -0.06, y: 0.44, w: 0.86, h: 0.47,
+    color: '#0d2645', opacity: 1
+  },
+
   // Design 2's water composite. Fractions of the canvas throughout.
   water: {
     y: 0.45,           // top edge of the drawn texture
@@ -406,7 +420,7 @@ export const SCHEMA = [
     id: 'content', tab: 'text', title: 'Text content',
     fields: [
       { key: 'text.kicker', label: 'Headline (one line per row)', type: 'textarea', rows: 2, show: ['design-3', 'bold-left', 'editorial'] },
-      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-2', 'design-4', 'design-5', 'diagonal-split', 'full-bleed'] },
+      { key: 'text.script', label: 'Script headline', type: 'textarea', rows: 2, show: ['design-1', 'design-2', 'design-4', 'design-5', 'diagonal-split', 'full-bleed'] },
       { key: 'text.model', label: 'Boat / model', type: 'textarea', rows: 2 },
       { key: 'text.tagline', label: 'Tagline', type: 'textarea', rows: 2, show: ['design-3', 'design-4', 'full-bleed', 'bold-left', 'diagonal-split', 'editorial'] }
     ]
@@ -422,10 +436,36 @@ export const SCHEMA = [
     ]
   },
   typeGroup('type-display', 'Type — headline', 'type.display', 'display', { maxSize: 500, show: ['design-3', 'bold-left', 'editorial'], familyWhen: st => !st.siteType.lockHeading }),
-  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-2', 'design-4', 'design-5', 'diagonal-split', 'full-bleed'] }),
+  typeGroup('type-script', 'Type — script headline', 'type.script', 'script', { maxSize: 500, show: ['design-1', 'design-2', 'design-4', 'design-5', 'diagonal-split', 'full-bleed'] }),
   typeGroup('type-model', 'Type — boat / model', 'type.model', 'text', { maxSize: 260, familyWhen: st => !st.siteType.lockSecondary }),
   typeGroup('type-tagline', 'Type — tagline & secondary', 'type.tagline', 'text', { maxSize: 220, familyWhen: st => !st.siteType.lockSecondary }),
-  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5', 'design-2'], familyWhen: st => !st.siteType.lockSecondary }),
+  typeGroup('type-spec', 'Type — spec strip', 'type.spec', 'text', { maxSize: 120, show: ['editorial', 'design-5', 'design-2', 'design-1'], familyWhen: st => !st.siteType.lockSecondary }),
+  {
+    id: 'brush', tab: 'style', title: 'Dry-brush stroke', show: ['design-1'],
+    note: 'The stroke is a stencil of the brush artwork, recoloured — its texture comes from the file, its colour from your logo.',
+    fields: [
+      { key: 'brush.x', label: 'Brush left', type: 'range', min: -0.4, max: 1, step: 0.002 },
+      { key: 'brush.y', label: 'Brush top', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'brush.w', label: 'Brush width', type: 'range', min: 0.1, max: 1.6, step: 0.002 },
+      { key: 'brush.h', label: 'Brush height', type: 'range', min: 0.05, max: 1, step: 0.002 },
+      { key: 'brush.color', label: 'Brush colour', type: 'color' },
+      { key: 'brush.opacity', label: 'Brush opacity', type: 'range', min: 0, max: 1, step: 0.01 }
+    ]
+  },
+  {
+    id: 'sheet', tab: 'text', title: 'Design 1 placement', show: ['design-1'],
+    fields: [
+      { key: 'sheet.photoBottom', label: 'Photo bottom', type: 'range', min: 0.2, max: 1, step: 0.002 },
+      { key: 'sheet.scriptX', label: 'Script left', type: 'range', min: -0.1, max: 0.8, step: 0.002 },
+      { key: 'sheet.scriptY', label: 'Script height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'sheet.scriptWidth', label: 'Script max width', type: 'range', min: 0.2, max: 1, step: 0.005 },
+      { key: 'sheet.headingY', label: 'Heading height', type: 'range', min: 0, max: 1, step: 0.002 },
+      { key: 'sheet.specY', label: 'Spec row top', type: 'range', min: 0.5, max: 1, step: 0.002 },
+      { key: 'sheet.specH', label: 'Spec row height', type: 'range', min: 0.04, max: 0.4, step: 0.002 },
+      { key: 'sheet.specLeft', label: 'Spec row left', type: 'range', min: 0, max: 0.6, step: 0.002 },
+      { key: 'sheet.specRight', label: 'Spec row right', type: 'range', min: 0.3, max: 1, step: 0.002 }
+    ]
+  },
   {
     id: 'water', tab: 'style', title: 'Water layer', show: ['design-2'],
     note: 'The waterline is the texture\u2019s own edge. Keying removes the white sky stock images ship with, so the wave boundary stays photographic.',

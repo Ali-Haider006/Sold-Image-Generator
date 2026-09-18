@@ -24,7 +24,7 @@ import {
 const $ = sel => document.querySelector(sel);
 const LS = {
   logo: 'sig.logo.v2', logoAlt: 'sig.logoalt.v1', boat: 'sig.boat.v1',
-  water: 'sig.water.v1',
+  water: 'sig.water.v1', brush: 'sig.brush.v1',
   settings: 'sig.designs.v4', fonts: 'sig.fonts.v2'
 };
 
@@ -44,7 +44,7 @@ const saveJSON = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)
 
 const state = {
   screen: 'intake',
-  assets: { boat: null, logo: null, logoAlt: null, water: null },
+  assets: { boat: null, logo: null, logoAlt: null, water: null, brush: null },
   palette: null,
   boat: { ...DEFAULT_BOAT },
   settings: {},          // design id -> settings
@@ -229,6 +229,20 @@ async function setWater(file) {
   } catch { toast('That file could not be read as an image.'); }
 }
 
+async function setBrush(file) {
+  if (!file?.type.startsWith('image/')) return toast('Pick an image file for the brush.');
+  try {
+    const { img, dataURL } = await fileToImage(file);
+    state.assets.brush = img;
+    saveJSON(LS.brush, dataURL);
+    $('#brush-drop').classList.add('filled');
+    $('#brush-name').textContent = file.name;
+    drawThumb($('#brush-thumb'), img);
+    scheduleRender();
+    toast('Brush artwork replaced.');
+  } catch { toast('That file could not be read as an image.'); }
+}
+
 async function setLogoAlt(file) {
   if (!file?.type.startsWith('image/')) return toast('Pick an image file for the reversed logo.');
   try {
@@ -401,7 +415,8 @@ function onControlChange(key) {
 }
 
 function syncSpecsVisibility() {
-  $('#specs-group').hidden = !['editorial', 'design-5', 'design-2'].includes(S().template);
+  $('#specs-group').hidden =
+    !['editorial', 'design-5', 'design-2', 'design-1'].includes(S().template);
 }
 
 function paintEditorAssets() {
@@ -746,6 +761,7 @@ wireDrop($('#boat-drop'), $('#boat-file'), setBoat);
 wireDrop($('#logo-drop'), $('#logo-file'), setLogo);
 wireDrop($('#logo-alt-drop'), $('#logo-alt-file'), setLogoAlt);
 wireDrop($('#water-drop'), $('#water-file'), setWater);
+wireDrop($('#brush-drop'), $('#brush-file'), setBrush);
 
 for (const f of BOAT_FIELDS) {
   const el = $('#boat-' + f);
@@ -826,6 +842,28 @@ if (savedLogoAlt) {
   };
   img.src = savedLogoAlt;
 }
+
+/** Load a bundled asset, or the user's replacement for it if there is one. */
+function loadBundled(key, fallbackSrc, dropId, nameId, thumbId, target) {
+  const saved = loadJSON(LS[key]);
+  const img = new Image();
+  img.onload = () => {
+    state.assets[target] = img;
+    if (saved) {
+      $(dropId).classList.add('filled');
+      $(nameId).textContent = 'Saved file';
+    } else {
+      $(nameId).textContent = 'Using the bundled file';
+    }
+    drawThumb($(thumbId), img);
+    scheduleRender();
+    if (state.screen === 'gallery') renderGallery();
+  };
+  img.onerror = () => {};
+  img.src = saved || fallbackSrc;
+}
+
+loadBundled('brush', 'assets/brush.png', '#brush-drop', '#brush-name', '#brush-thumb', 'brush');
 
 // Water texture: a saved one if the user replaced it, otherwise the bundled
 // cut-out, so designs that need water work with no extra step.

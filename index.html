@@ -104,6 +104,20 @@ npx http-server -p 8000</pre>
       <input type="file" id="water-file" accept="image/*" hidden>
     </details>
 
+    <details class="fonts-note">
+      <summary>Brush artwork — used by designs with a painted stroke</summary>
+      <p class="note">A dry-brush stroke ships with this tool. It is used as a stencil: its texture comes
+        from the file, its colour from your logo, so the stroke is never stuck at whatever navy the
+        artwork was drawn in. Dark-on-white artwork works; transparency is not required.</p>
+      <div id="brush-drop" class="drop" tabindex="0" role="button" aria-label="Upload brush artwork">
+        <strong>Brush artwork</strong>
+        <span>Optional — the bundled stroke is used otherwise</span>
+        <em id="brush-name"></em>
+        <canvas class="drop-thumb" id="brush-thumb" width="240" height="120" hidden></canvas>
+      </div>
+      <input type="file" id="brush-file" accept="image/*" hidden>
+    </details>
+
     <fieldset class="boat-record">
       <legend>The boat</legend>
       <p class="note">Entered once. The heading and the spec row on every design are built from these.</p>
