@@ -11,7 +11,7 @@
 ------------------------------------------------------------------- */
 
 import { DEFAULTS, CANVAS_PRESETS, clone, merge } from './settings.js';
-import { DESIGNS, DESIGN_SLOTS, byId, pendingSlots } from './designs.js';
+import { DESIGNS, DESIGN_SLOTS, byId, inSlotOrder, emptySlots, draftSlots } from './designs.js';
 import { Panel, buildSpecEditor, buildTabs } from './ui.js';
 import { renderDesign, RENDERERS, textHitBoxes } from './templates.js';
 import { logoGeometry } from './logo.js';
@@ -302,16 +302,21 @@ function renderGallery() {
   const grid = $('#design-grid');
   grid.innerHTML = '';
 
-  // Only designs that have been given a number count toward the eight.
-  const numbered = DESIGNS.filter(d => d.status === 'ready' && d.slot);
+  // Three distinct states, and conflating them hides real progress: built to
+  // a spec, numbered but still a first-pass layout, and not assigned at all.
+  const built = DESIGNS.filter(d => d.status === 'ready' && d.slot).length;
   const unnumbered = DESIGNS.filter(d => d.status === 'ready' && !d.slot).length;
-  $('#gallery-count').textContent =
-    `${numbered.length} of ${DESIGN_SLOTS} numbered designs are built` +
-    (unnumbered ? `, plus ${unnumbered} built but not yet numbered` : '') +
-    `. Slots ${pendingSlots().join(', ')} are waiting on their specifications.`;
+  const drafts = draftSlots();
+  const empty = emptySlots();
 
-  for (const d of DESIGNS) grid.appendChild(designCard(d));
-  for (const slot of pendingSlots()) grid.appendChild(pendingCard(slot));
+  const parts = [`${built} of ${DESIGN_SLOTS} designs are built to spec`];
+  if (unnumbered) parts.push(`${unnumbered} built but not yet numbered`);
+  if (drafts.length) parts.push(`slot${drafts.length > 1 ? 's' : ''} ${drafts.join(', ')} numbered but awaiting a spec`);
+  if (empty.length) parts.push(`slot${empty.length > 1 ? 's' : ''} ${empty.join(', ')} unassigned`);
+  $('#gallery-count').textContent = parts.join(' · ') + '.';
+
+  for (const d of inSlotOrder()) grid.appendChild(designCard(d));
+  for (const slot of empty) grid.appendChild(pendingCard(slot));
 }
 
 function designCard(d) {

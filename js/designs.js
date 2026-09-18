@@ -295,8 +295,8 @@ export const DESIGNS = [
     }
   },
   {
-    id: 'full-bleed', slot: null, name: 'Full Bleed', status: 'ready',
-    blurb: 'Photo edge to edge, solid corner tag, solid footer bar. Not yet numbered.',
+    id: 'full-bleed', slot: 6, name: 'Full Bleed', status: 'ready',
+    blurb: 'Photo edge to edge, solid corner tag, solid footer bar.',
     preset: FULL_BLEED,
     /** Both panels and the type take the logo's major colour. */
     paletteMap(S, r) {
@@ -311,8 +311,8 @@ export const DESIGNS = [
     }
   },
   {
-    id: 'draft-editorial', slot: null, name: 'Editorial', status: 'draft',
-    blurb: 'Not yet numbered or spec’d — serif column with a spec strip.',
+    id: 'draft-editorial', slot: 7, name: 'Editorial', status: 'draft',
+    blurb: 'Numbered, but still on its first-pass layout — send the reference and type spec to finish it.',
     preset: { template: 'editorial' },
     paletteMap: null
   }
@@ -321,8 +321,16 @@ export const DESIGNS = [
 export const DESIGN_SLOTS = 8;
 export const byId = id => DESIGNS.find(d => d.id === id);
 
-/** The numbered slots still waiting on a specification. */
-export const pendingSlots = () => {
+/** Gallery order follows the slot numbers; anything unnumbered trails them. */
+export const inSlotOrder = () =>
+  [...DESIGNS].sort((a, b) => (a.slot || 99) - (b.slot || 99));
+
+/** Slot numbers with no design assigned to them at all. */
+export const emptySlots = () => {
   const taken = new Set(DESIGNS.map(d => d.slot).filter(Boolean));
   return Array.from({ length: DESIGN_SLOTS }, (_, i) => i + 1).filter(n => !taken.has(n));
 };
+
+/** Numbered, but the layout is still a first pass rather than a spec. */
+export const draftSlots = () =>
+  DESIGNS.filter(d => d.slot && d.status !== 'ready').map(d => d.slot).sort((a, b) => a - b);
